@@ -7,19 +7,35 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import ProductView from "./pages/ProductView";
 import AdminDashboard from "./pages/AdminDashboard";
+import Cart from "./Cart"
+import { CartProvider } from "./context/CartContext";
+
 
 function App() {
   return (
     <BrowserRouter>
+    
       <Routes>
 
-        
-         
+ <Route
+          path="/cart"
+           element={
+            <>
+             <Navbar/>
+              <Cart/>
+            </>
+          }
+        /> 
+
+
         <Route
           path="/"
           element={
             <>
-              <Navbar />
+            
+              <Navbar/>
+
+            
               <Home />
             </>
           }
