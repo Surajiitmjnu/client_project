@@ -233,6 +233,9 @@
   font-weight: 700;
   cursor: pointer;
 }
+.checkout-btn:disabled { opacity: .65; cursor: not-allowed; }
+.checkout-error { margin: 12px 0 0; color: #d83d4a; font-size: 12px; line-height: 1.45; }
+.checkout-sync-note { max-width: 420px; margin: 12px auto; color: #8a5d00; font-size: 13px; line-height: 1.5; }
 
 .secure-payment {
   text-align: center;
@@ -240,6 +243,7 @@
   color: #747b91;
   margin: 20px 0;
 }
+.razorpay-test-note { margin: 8px 0 0; color: #63708c; font-size: 11px; text-align: center; }
 
 .service-list {
   border-top: 1px solid #e8eaf3;

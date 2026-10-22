@@ -2,19 +2,20 @@
 import React, { useState, useEffect } from "react";
 import "./ProductView.css";
 import { useParams ,useNavigate} from "react-router-dom";
-import { product_all_forma } from "../data/product";
 import { useCart } from "../context/CartContext";
 import { calculatePrice, getPricingSettings, getProductMoq } from "../utils/pricing";
+import { getFallbackProducts, subscribeToProducts } from "../utils/productStore";
 
 
 export default function ProductView() {
   const { id } = useParams();
   const { addToCart, pricingSettings, isLoyalCustomer } = useCart();
   const navigate = useNavigate();
+  const [products, setProducts] = useState(getFallbackProducts);
 
   // URL ID se product find karo
-  const product = product_all_forma.find(
-    (item) => Number(item.id) === Number(id)
+  const product = products.find(
+    (item) => String(item.id) === String(id)
   );
 
   const [selectedImage, setSelectedImage] = useState(0);
@@ -30,6 +31,23 @@ export default function ProductView() {
   useEffect(() => {
     setSelectedImage(0);
   }, [id]);
+
+  useEffect(() => {
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = subscribeToProducts((firestoreProducts) => {
+        if (firestoreProducts.length) {
+          setProducts(firestoreProducts.map((item) => ({
+            ...item,
+            images: item.images || [item.image].filter(Boolean),
+          })));
+        }
+      }, (error) => console.error("Unable to load product details:", error));
+    } catch (error) {
+      console.error("Unable to subscribe to product details:", error);
+    }
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     const refreshPricing = () => setCurrentPricing(getPricingSettings());

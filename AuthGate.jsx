@@ -11,9 +11,7 @@ export default function AuthGate({ children }) {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        syncCustomerProfile(currentUser).catch((error) => {
-          console.error("Unable to sync customer profile:", error);
-        });
+        void syncCustomerProfile(currentUser);
       }
     });
     return () => unsubscribe();

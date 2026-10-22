@@ -7,6 +7,16 @@
 }
 * { box-sizing: border-box; }
 .ms-admin { min-height: 100vh; background: #f5f5ff; }
+.ms-login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: linear-gradient(135deg, #f5f5ff, #ece7ff); }
+.ms-login-card { width: min(100%, 390px); display: grid; gap: 14px; padding: 34px; border: 1px solid #e4e1f3; border-radius: 20px; background: white; box-shadow: 0 18px 50px #5a2fe71c; }
+.ms-login-brand { width: 50px; height: 50px; display: grid; place-items: center; border-radius: 14px; color: white; background: linear-gradient(145deg,#8755ff,#5a2fe7); }
+.ms-login-card h1 { margin: 4px 0 0; color: #101832; font-size: 27px; }
+.ms-login-card p { margin: -5px 0 8px; color: #63708c; font-size: 13px; }
+.ms-login-card label { display: grid; gap: 6px; color: #25304b; font-size: 12px; font-weight: 600; }
+.ms-login-card input { border: 1px solid #dfe2ef; border-radius: 8px; padding: 11px; outline: none; font: inherit; }
+.ms-login-card input:focus { border-color: #7540f6; box-shadow: 0 0 0 3px #7540f61c; }
+.ms-login-card > button { border: 0; border-radius: 9px; padding: 12px; color: white; background: linear-gradient(100deg,#7540f6,#6232e8); font: inherit; font-weight: 700; cursor: pointer; }
+.ms-login-error { color: #d83d4a; font-size: 12px; font-weight: 600; }
 .ms-topbar {
   height: 82px; position: fixed; z-index: 20; inset: 0 0 auto 0;
   display: flex; align-items: center; gap: 34px; padding: 0 28px;
@@ -31,7 +41,7 @@
 .ms-nav-link.active { background: linear-gradient(100deg,#7540f6,#6232e8); color: white; box-shadow: 0 5px 14px #6b3ae92b; }
 .ms-nav-link.active svg { color: white; }
 .ms-nav-chevron { margin-left: auto; transform: rotate(-90deg); }
-.ms-logout { border-top: 1px solid #d9dced; border-radius: 0; margin: auto 10px 12px; padding-top: 15px; }
+.ms-logout { width: calc(100% - 20px); border: 0; border-top: 1px solid #d9dced; border-radius: 0; margin: auto 10px 12px; padding-top: 15px; background: transparent; text-align: left; cursor: pointer; }
 .ms-main { margin-left: 258px; padding: 108px 25px 24px; max-width: 1800px; }
 .ms-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 0 22px; }
 .ms-page-heading h1 { font-size: clamp(27px,2.5vw,36px); margin: 0 0 5px; letter-spacing: -1.2px; }
@@ -39,6 +49,30 @@
 .ms-date, .ms-select { display: flex; align-items: center; gap: 10px; border: 1px solid #e1e4f1; background: white; color: #19223c; border-radius: 11px; padding: 12px 14px; font: inherit; font-size: 13px; white-space: nowrap; }
 .ms-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin-bottom: 18px; }
 .ms-management-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(320px,.85fr); gap: 17px; margin-bottom: 17px; }
+.ms-catalog-panel { margin-bottom: 17px; }
+.ms-catalog-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.ms-catalog-button { display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 8px; padding: 10px 13px; background: #eee7ff; color: #6435ed; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.ms-catalog-button input { display: none; }
+.ms-csv-format { margin: 12px 0 0; color: #63708c; font-size: 11px; }
+.ms-csv-format code { padding: 2px 4px; font-size: 10px; }
+.ms-catalog-success, .ms-catalog-error { margin: 10px 0 0; font-size: 12px; font-weight: 600; }
+.ms-catalog-success { color: #07975a; }
+.ms-catalog-error { color: #d83d4a; }
+.ms-coupon-manager { margin-top: 15px; padding-top: 13px; border-top: 1px solid #edf0f7; }
+.ms-coupon-manager h4 { margin: 0 0 9px; color: #25304b; font-size: 12px; }
+.ms-coupon-form { display: flex; flex-wrap: wrap; gap: 7px; }
+.ms-coupon-form input { width: 125px; border: 1px solid #dfe2ef; border-radius: 6px; padding: 7px; font: inherit; font-size: 11px; }
+.ms-coupon-list { display: grid; gap: 6px; margin-top: 10px; }
+.ms-coupon-row { display: flex; align-items: center; justify-content: space-between; padding: 8px; border-radius: 7px; background: #f7f7fd; font-size: 11px; }
+.ms-coupon-row span { display: grid; gap: 3px; }
+.ms-coupon-row small { color: #63708c; }
+.coupon-box { margin: 15px 0 4px; padding-top: 12px; border-top: 1px solid #edf0f7; }
+.coupon-box label { display: block; margin-bottom: 6px; color: #25304b; font-size: 12px; font-weight: 600; }
+.coupon-box > div { display: flex; gap: 6px; }
+.coupon-box input { min-width: 0; flex: 1; border: 1px solid #dfe2ef; border-radius: 7px; padding: 9px; font: inherit; font-size: 12px; }
+.coupon-box button { border: 0; border-radius: 7px; padding: 8px 11px; background: #eee7ff; color: #6435ed; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.coupon-success { margin: 7px 0 0; color: #07975a; font-size: 11px; }
+.coupon-success button { padding: 0; background: transparent; color: #d83d4a; }
 .ms-panel-description { margin: -4px 0 15px; color: #63708c; font-size: 12px; line-height: 1.5; }
 .ms-save-button, .ms-add-tier { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 8px; padding: 9px 11px; background: #eee7ff; color: #6435ed; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .ms-tier-list { display: grid; gap: 8px; }
@@ -99,6 +133,14 @@
 .ms-legend-item i { width: 13px; height: 13px; border-radius: 50%; margin-top: 3px; }
 .ms-legend-item small { display: block; margin-top: 6px; color: #64708b; font-size: 12px; }
 .ms-bottom-grid { display: grid; grid-template-columns: minmax(0,1.75fr) minmax(300px,.9fr); gap: 17px; }
+.ms-operations-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 17px; margin-top: 17px; }
+.ms-operations-grid > .ms-panel:first-child { grid-column: 1 / -1; }
+.ms-operations-grid .ms-customer-list { max-height: 220px; }
+.ms-inventory-value { color: #07975a; font-weight: 700; }
+.ms-inventory-value.low { color: #d83d4a; }
+.ms-category-list { display: grid; gap: 8px; }
+.ms-category-row { display: flex; justify-content: space-between; padding: 12px; border-radius: 8px; background: #f7f7fd; color: #25304b; font-size: 12px; }
+.ms-category-row strong { color: #6435ed; }
 .ms-view-all { display: inline-flex; align-items: center; gap: 5px; color: #6838ee; text-decoration: none; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .ms-table-wrap { overflow-x: auto; }
 .ms-orders-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; white-space: nowrap; }
@@ -113,6 +155,9 @@
 .ms-status.processing { color: #d67b00; background: #fff0d1; }
 .ms-status.shipped { color: #176de0; background: #deedff; }
 .ms-status.pending { color: #e23b43; background: #ffe2e3; }
+.ms-status.cancelled { color: #70798f; background: #eceef4; }
+.ms-order-status-select { border: 1px solid #dfe2ef; border-radius: 7px; padding: 6px 7px; color: #25304b; background: white; font: inherit; font-size: 11px; cursor: pointer; }
+.ms-order-status-select:disabled { opacity: .6; cursor: wait; }
 .ms-product-list { display: grid; gap: 9px; }
 .ms-product-row { display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 12px; min-height: 43px; font-size: 12px; }
 .ms-product-thumb { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; color: #6940d9; background: #f1ebff; }
@@ -131,7 +176,8 @@
   .ms-sidebar { width: 220px; }
   .ms-main { margin-left: 220px; padding-left: 18px; padding-right: 18px; }
   .ms-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .ms-management-grid, .ms-analytics-grid, .ms-bottom-grid { grid-template-columns: minmax(0,1fr); }
+  .ms-management-grid, .ms-analytics-grid, .ms-bottom-grid, .ms-operations-grid { grid-template-columns: minmax(0,1fr); }
+  .ms-operations-grid > .ms-panel:first-child { grid-column: auto; }
   .ms-order-type-content { justify-content: flex-start; }
   .ms-donut { width: 185px; }
 }

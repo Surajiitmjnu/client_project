@@ -1,13 +1,14 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { product_all_forma } from "../data/product";
 import "./Products.css";
 import { getPricingSettings, getProductMoq } from "../utils/pricing";
+import { getFallbackProducts, subscribeToProducts } from "../utils/productStore";
 
 export default function Products() {
   const location = useLocation();
   const [pricingSettings, setPricingSettings] = useState(getPricingSettings);
+  const [products, setProducts] = useState(getFallbackProducts);
 
   const queryParams = new URLSearchParams(location.search);
   const search = (queryParams.get("search") || "").toLowerCase().trim();
@@ -29,8 +30,25 @@ export default function Products() {
       );
   }, []);
 
+  useEffect(() => {
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = subscribeToProducts((firestoreProducts) => {
+        if (firestoreProducts.length) {
+          setProducts(firestoreProducts.map((product) => ({
+            ...product,
+            images: product.images || [product.image].filter(Boolean),
+          })));
+        }
+      }, (error) => console.error("Unable to load products for the store:", error));
+    } catch (error) {
+      console.error("Unable to subscribe to store products:", error);
+    }
+    return () => unsubscribe();
+  }, []);
+
   const filteredProducts = useMemo(() => {
-    return product_all_forma.filter((product) => {
+    return products.filter((product) => {
       const name = (product.name || "").toLowerCase();
       const productCategory = (product.category || "").toLowerCase();
 
@@ -45,15 +63,33 @@ export default function Products() {
 
       return matchesSearch && matchesCategory;
     });
-  }, [search, category]);
+  }, [products, search, category]);
+
+  const categories = useMemo(() => {
+    const grouped = products.reduce((result, product) => {
+      const categoryName = product.category || "Uncategorized";
+      if (!result[categoryName]) result[categoryName] = [];
+      result[categoryName].push(product);
+      return result;
+    }, {});
+    return Object.entries(grouped).map(([name, categoryProducts]) => ({
+      name,
+      products: categoryProducts,
+      image: categoryProducts[0]?.images?.[0] || categoryProducts[0]?.image || "",
+    }));
+  }, [products]);
+
+  const isCategoryView = category !== "All Categories" || search;
 
   return (
     <div className="products-page">
       <div className="products-heading">
         <div>
-          <h1>Our Products</h1>
+          <h1>{isCategoryView ? category : "Shop by Category"}</h1>
           <p>
-            Explore our complete beauty and personal care collection.
+            {isCategoryView
+              ? "Choose a product from this category and shop at its individual price."
+              : "Browse a category to discover its products, prices, and offers."}
           </p>
 
           {(search || category !== "All Categories") && (
@@ -66,7 +102,26 @@ export default function Products() {
         <span>{filteredProducts.length} Products</span>
       </div>
 
-      {filteredProducts.length === 0 ? (
+      {!isCategoryView ? (
+        <div className="category-directory">
+          {categories.map((item) => (
+            <Link
+              to={`/products?category=${encodeURIComponent(item.name)}`}
+              className="category-directory-card"
+              key={item.name}
+            >
+              <div className="category-directory-image">
+                {item.image ? <img src={item.image} alt="" /> : <span>✨</span>}
+              </div>
+              <div>
+                <h2>{item.name}</h2>
+                <p>{item.products.length} product{item.products.length === 1 ? "" : "s"}</p>
+              </div>
+              <span className="category-directory-arrow">View products →</span>
+            </Link>
+          ))}
+        </div>
+      ) : filteredProducts.length === 0 ? (
         <div className="no-products">
           <h2>No products found</h2>
           <p>Try another product name or category.</p>

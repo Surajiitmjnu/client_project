@@ -37,7 +37,7 @@ export function registerCustomer(user) {
 export async function syncCustomerProfile(user) {
   if (!user?.uid) return;
   registerCustomer(user);
-  await setDoc(doc(db, "customers", user.uid), {
+  const profile = {
     uid: user.uid,
     name: user.displayName || user.email?.split("@")[0] || "Customer",
     email: user.email || "",
@@ -47,7 +47,17 @@ export async function syncCustomerProfile(user) {
     isLoyal: isLoyalCustomer(user.uid),
     creditBalance: getCustomerCredit(user.uid),
     lastLoginAt: new Date().toISOString(),
-  }, { merge: true });
+  };
+  try {
+    await setDoc(doc(db, "customers", user.uid), profile, { merge: true });
+    return true;
+  } catch (error) {
+    console.error(
+      "Unable to sync customer profile to Firestore. Local customer data remains available. Check the deployed Firestore rules for customers/{uid}:",
+      error,
+    );
+    return false;
+  }
 }
 
 export function subscribeToCustomers(onCustomers, onError) {

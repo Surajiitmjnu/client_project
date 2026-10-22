@@ -3,6 +3,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
 import { calculatePrice, getPricingSettings, getProductMoq } from "../utils/pricing";
 import { getCustomerCredit, isLoyalCustomer as checkLoyalty } from "../utils/customerStore";
+import { normalizeCouponCode, subscribeToCoupons } from "../utils/couponStore";
 
 const CartContext = createContext(null);
 
@@ -23,6 +24,13 @@ export function CartProvider({ children }) {
     getCustomerCredit(auth.currentUser?.uid),
   );
   const [useCredit, setUseCredit] = useState(false);
+  const [coupons, setCoupons] = useState([]);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+
+  useEffect(() => subscribeToCoupons(setCoupons, (error) => {
+    console.error("Unable to load coupons:", error);
+  }), []);
 
   useEffect(() => {
     localStorage.setItem("mayoor-cart", JSON.stringify(cart));
@@ -143,7 +151,12 @@ export function CartProvider({ children }) {
   const subtotal = pricedItems.reduce((sum, item) => sum + item.pricing.baseAmount, 0);
   const discountAmount = pricedItems.reduce((sum, item) => sum + item.pricing.discountAmount, 0);
   const totalAmount = subtotal - discountAmount;
-  const creditApplied = useCredit ? Math.min(creditBalance, totalAmount) : 0;
+  const couponDiscount = appliedCoupon?.isActive
+    ? Math.min(totalAmount, totalAmount * (Number(appliedCoupon.discountPercent) || 0) / 100)
+    : 0;
+  const discountedTotal = Math.max(0, totalAmount - couponDiscount);
+  const gstAmount = Math.round(discountedTotal * 0.2 * 100) / 100;
+  const creditApplied = useCredit ? Math.min(creditBalance, discountedTotal) : 0;
 
   return (
     <CartContext.Provider value={{
@@ -152,7 +165,16 @@ export function CartProvider({ children }) {
       subtotal, discountAmount, totalAmount, rawTotalAmount: subtotal,
       isLoyalCustomer: loyalCustomer, pricingSettings: settings,
       creditBalance, useCredit, setUseCredit, creditApplied,
-      payableAmount: totalAmount - creditApplied,
+      gstAmount,
+      payableAmount: Math.max(0, discountedTotal + gstAmount - creditApplied),
+      couponCode, setCouponCode, appliedCoupon, couponDiscount,
+      applyCoupon: () => {
+        const match = coupons.find((coupon) => coupon.code === normalizeCouponCode(couponCode) && coupon.isActive !== false);
+        if (!match) return false;
+        setAppliedCoupon(match);
+        return true;
+      },
+      removeCoupon: () => setAppliedCoupon(null),
     }}
     >
       {children}

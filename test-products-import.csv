@@ -1,0 +1,25 @@
+id,name,category,price,inventory,moq,image
+test-vitamin-c-serum,Vitamin C Glow Serum,Face Care,799,42,10,https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=700
+test-oat-cleanser,Oat Milk Gentle Cleanser,Face Care,549,28,5,https://images.unsplash.com/photo-1556228578-8c89e6adf883?w=700
+test-hydrating-toner,Hyaluronic Hydrating Toner,Face Care,699,31,10,https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=700
+test-retinol-night-cream,Retinol Renewal Night Cream,Face Care,999,24,15,https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?w=700
+test-clay-mask,Green Tea Clay Face Mask,Face Care,449,37,10,https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=700
+test-rose-lip-tint,Rose Velvet Lip Tint,Makeup,399,45,10,https://images.unsplash.com/photo-1586495777744-4413f21062fa?w=700
+test-nude-eyeshadow,Nude Glow Eyeshadow Palette,Makeup,899,18,15,https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=700
+test-liquid-highlighter,Champagne Liquid Highlighter,Makeup,599,22,10,https://images.unsplash.com/photo-1522335789203-aasd6fc0e1c2?w=700
+test-silk-hair-mask,Silk Repair Hair Mask,Hair Care,649,35,15,https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?w=700
+test-argan-shampoo,Argan Smooth Shampoo,Hair Care,499,40,10,https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?w=700
+test-scalp-serum,Peptide Scalp Serum,Hair Care,849,19,10,https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=700
+test-lavender-body-oil,Lavender Body Oil,Body Care,899,16,20,https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=700
+test-shea-body-butter,Shea Butter Body Cream,Body Care,749,27,10,https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?w=700
+test-coffee-body-scrub,Coffee Exfoliating Body Scrub,Body Care,599,33,15,https://images.unsplash.com/photo-1556228720-195a672e8a03?w=700
+test-foaming-handwash,Aloe Foaming Hand Wash,Personal Care,249,50,10,https://images.unsplash.com/photo-1584305574647-0cc949a2bb9f?w=700
+test-deodorant-rollon,Fresh Citrus Roll On,Personal Care,299,44,20,https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=700
+test-sunscreen-spf50,Daily Shield Sunscreen SPF 50,Sun Care,699,29,10,https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?w=700
+test-after-sun-gel,Cooling After Sun Gel,Sun Care,449,26,10,https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?w=700
+test-makeup-remover,Micellar Makeup Remover,Tools & Accessories,349,38,10,https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=700
+test-beauty-sponge,Cloud Soft Beauty Sponge,Tools & Accessories,199,65,25,https://images.unsplash.com/photo-1522335789203-aasd6fc0e1c2?w=700
+test-bath-salts,Calming Bath Salts,Wellness,549,21,15,https://images.unsplash.com/photo-1608571423902-eed4a5ad8108?w=700
+test-essential-oil,Relaxing Lavender Essential Oil,Wellness,449,30,10,https://images.unsplash.com/photo-1601049541289-9b1b7bbbfe19?w=700
+test-gift-set,Glow Ritual Gift Set,Gifts & Sets,1299,12,5,https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=700
+test-travel-kit,Travel Beauty Essentials Kit,Gifts & Sets,999,14,10,https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?w=700

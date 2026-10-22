@@ -5,11 +5,15 @@ import { useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { WalletCards } from "lucide-react";
 import { getCustomerCredit } from "../utils/customerStore";
+import { getFallbackProducts, subscribeToProducts } from "../utils/productStore";
 import "./Navbar.css";
 
 function Navbar() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All Categories");
+  const [categories, setCategories] = useState(() => [...new Set(
+    getFallbackProducts().map((product) => product.category || "Uncategorized"),
+  )].sort());
   const [user, setUser] = useState(null);
   const [hasProfileImageError, setHasProfileImageError] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -25,6 +29,22 @@ function Navbar() {
       setIsProfileOpen(false);
     });
     return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = subscribeToProducts((products) => {
+        if (products.length) {
+          setCategories([...new Set(
+            products.map((product) => product.category || "Uncategorized"),
+          )].sort());
+        }
+      }, (error) => console.error("Unable to load search categories:", error));
+    } catch (error) {
+      console.error("Unable to subscribe to search categories:", error);
+    }
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -105,14 +125,21 @@ function Navbar() {
         <form className="search-box" onSubmit={handleSearch}>
           <select
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
+            onChange={(e) => {
+              const selectedCategory = e.target.value;
+              setCategory(selectedCategory);
+              const params = new URLSearchParams();
+              if (selectedCategory !== "All Categories") {
+                params.set("category", selectedCategory);
+              }
+              navigate(`/products${params.toString() ? `?${params.toString()}` : ""}`);
+            }}
             aria-label="Select product category"
           >
             <option>All Categories</option>
-            <option>Personal Care</option>
-            <option>Beauty & Makeup</option>
-            <option>Skincare</option>
-            <option>Hair Care</option>
+            {categories.map((categoryName) => (
+              <option key={categoryName}>{categoryName}</option>
+            ))}
           </select>
 
           <input
