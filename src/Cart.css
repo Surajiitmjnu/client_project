@@ -77,6 +77,13 @@
   margin: 10px 0;
 }
 
+.cart-discount,
+.loyalty-note {
+  color: #159447;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .cart-quantity {
   display: inline-flex;
   align-items: center;

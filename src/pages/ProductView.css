@@ -93,6 +93,24 @@
   font-size: 12px;
 }
 
+.moq-badge {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 12px;
+  padding: 9px 12px;
+  border: 1px solid #d8cdfd;
+  border-radius: 8px;
+  background: #f5f1ff;
+  color: #5330c5;
+  font-size: 12px;
+}
+
+.moq-badge span {
+  color: #706b86;
+  font-size: 10px;
+}
+
 .rating {
   display: flex;
   align-items: center;
@@ -138,6 +156,12 @@
   padding: 5px;
   border-radius: 5px;
   margin-left: 8px;
+}
+
+.pricing-hint {
+  color: #159447;
+  font-size: 12px;
+  margin: 6px 0 12px;
 }
 
 .description {

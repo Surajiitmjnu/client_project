@@ -4,11 +4,12 @@ import "./ProductView.css";
 import { useParams ,useNavigate} from "react-router-dom";
 import { product_all_forma } from "../data/product";
 import { useCart } from "../context/CartContext";
+import { calculatePrice, getPricingSettings, getProductMoq } from "../utils/pricing";
 
 
 export default function ProductView() {
   const { id } = useParams();
- //const { addToCart } = useCart();
+  const { addToCart, pricingSettings, isLoyalCustomer } = useCart();
   const navigate = useNavigate();
 
   // URL ID se product find karo
@@ -22,11 +23,18 @@ export default function ProductView() {
   const [activeTab, setActiveTab] = useState("Description");
   const [pin, setPin] = useState("");
   const [message, setMessage] = useState("");
+  const [currentPricing, setCurrentPricing] = useState(pricingSettings);
 
   // Product change hone par first image select karo
   useEffect(() => {
     setSelectedImage(0);
   }, [id]);
+
+  useEffect(() => {
+    const refreshPricing = () => setCurrentPricing(getPricingSettings());
+    window.addEventListener("pricing-settings-updated", refreshPricing);
+    return () => window.removeEventListener("pricing-settings-updated", refreshPricing);
+  }, []);
 
   if (!product) {
     return (
@@ -39,6 +47,8 @@ export default function ProductView() {
 
   // Product ke images array se images lo
   const images = product.images || [product.image].filter(Boolean);
+  const moq = getProductMoq(product, currentPricing);
+  const pricing = calculatePrice(product.price, qty, currentPricing, isLoyalCustomer, moq);
 
   if (images.length === 0) {
     return <h2>Product images not available</h2>;
@@ -95,6 +105,10 @@ export default function ProductView() {
 
           <h1>{product.name}</h1>
           <p className="subtitle">{product.category}</p>
+          <div className="moq-badge">
+            <strong>Bulk discount starts at {moq} units</strong>
+            <span>You can order fewer units; this quantity unlocks bulk pricing.</span>
+          </div>
 
           <div className="rating">
             <span className="stars">★★★★★</span>
@@ -103,8 +117,16 @@ export default function ProductView() {
           </div>
 
           <div className="price">
-            ₹{(Number(product.price) * qty).toLocaleString("en-IN")}
+            ₹{pricing.finalAmount.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+            {pricing.discountPercent > 0 && <del>₹{pricing.baseAmount.toLocaleString("en-IN")}</del>}
+            {pricing.discountPercent > 0 && <span className="discount">{pricing.discountPercent}% OFF</span>}
           </div>
+          <p className="pricing-hint">
+            {pricing.quantityDiscount > 0
+              ? `${pricing.quantityDiscount}% quantity discount applied`
+              : `Add ${moq}+ units to unlock bulk discount`}
+            {pricing.loyaltyDiscount > 0 && " + loyalty discount"}
+          </p>
 
           <p className="tax">Inclusive of all taxes</p>
 
@@ -149,6 +171,7 @@ export default function ProductView() {
                 className="add-cart"
                 onClick={() =>
                  {
+                  addToCart(product, qty);
                   alert(`${qty} item(s) added to cart: ${product.name}`)
                    navigate("/cart")
                   

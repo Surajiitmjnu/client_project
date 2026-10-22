@@ -153,7 +153,7 @@ function Home() {
           <span className="eyebrow">FOR BUSINESS BUYERS</span>
           <h2>Buying in bulk?</h2>
           <p>
-            Explore wholesale pricing, minimum order quantities
+            Explore wholesale pricing and product-specific bulk discount thresholds
             and business purchasing options.
           </p>
         </div>

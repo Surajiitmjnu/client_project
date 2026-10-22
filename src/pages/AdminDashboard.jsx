@@ -1,15 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   LayoutDashboard, Package, Grid2X2, ClipboardList, Users, Building2,
   Database, Tag, Star, ChartNoAxesColumnIncreasing, Settings, LogOut,
   Search, Bell, ChevronDown, ShoppingCart, IndianRupee, Box, CalendarDays,
-  ChartColumnIncreasing, PieChart, Trophy, Eye
+  ChartColumnIncreasing, PieChart, Trophy, Eye, UserCheck, Plus, Trash2, Save
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, PieChart as RePieChart, Pie, Cell
 } from "recharts";
 import "./AdminDashboard.css";
+import { getPricingSettings, savePricingSettings } from "../utils/pricing";
+import { getRegisteredCustomers, setCustomerLoyalty } from "../utils/customerStore";
+import { product_all_forma } from "../data/product";
 
 const salesData = [
   { day: "Oct 1", sales: 12 }, { day: "Oct 3", sales: 22 },
@@ -71,6 +74,43 @@ function StatCard({ icon: Icon, title, value, growth, tone }) {
 }
 
 export default function AdminDashboard() {
+  const [pricing, setPricing] = useState(getPricingSettings);
+  const [customers, setCustomers] = useState(getRegisteredCustomers);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [productMoqs, setProductMoqs] = useState(() =>
+    Object.fromEntries(product_all_forma.map((product) => [product.id, getPricingSettings().productMoqs?.[product.id] || product.moq])),
+  );
+
+  useEffect(() => {
+    const refreshCustomers = () => setCustomers(getRegisteredCustomers());
+    window.addEventListener("customer-settings-updated", refreshCustomers);
+    window.addEventListener("storage", refreshCustomers);
+    return () => {
+      window.removeEventListener("customer-settings-updated", refreshCustomers);
+      window.removeEventListener("storage", refreshCustomers);
+    };
+  }, []);
+
+  const updateTier = (index, field, value) => {
+    setPricing((current) => ({
+      ...current,
+      tiers: current.tiers.map((tier, tierIndex) =>
+        tierIndex === index ? { ...tier, [field]: value } : tier,
+      ),
+    }));
+  };
+
+  const filteredCustomers = customers.filter((customer) =>
+    `${customer.name} ${customer.email}`.toLowerCase().includes(customerSearch.toLowerCase()),
+  );
+
+  const savePricing = () => {
+    setPricing(savePricingSettings({ ...pricing, productMoqs }));
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 2200);
+  };
+
   return (
     <div className="ms-admin">
       <header className="ms-topbar">
@@ -116,6 +156,55 @@ export default function AdminDashboard() {
           <StatCard icon={IndianRupee} title="Total Revenue" value="₹4,56,320" growth="18%" tone="rose" />
           <StatCard icon={Users} title="Total Customers" value="892" growth="10%" tone="blue" />
           <StatCard icon={Box} title="Total Products" value="156" growth="5%" tone="green" />
+        </section>
+
+        <section className="ms-management-grid">
+          <article className="ms-panel ms-pricing-panel" id="coupons-&-offers">
+            <div className="ms-panel-heading">
+              <h3><Tag size={24} /> Quantity &amp; Loyalty Pricing</h3>
+              <button className="ms-save-button" onClick={savePricing}><Save size={16} /> {saved ? "Saved" : "Save rules"}</button>
+            </div>
+            <p className="ms-panel-description">The highest matching quantity tier is applied per product. Loyalty discount stacks with the quantity discount.</p>
+            <div className="ms-tier-list">
+              {pricing.tiers.map((tier, index) => (
+                <div className="ms-tier-row" key={`${tier.minimumQuantity}-${index}`}>
+                  <label>Buy at least <input type="number" min="1" value={tier.minimumQuantity} onChange={(event) => updateTier(index, "minimumQuantity", event.target.value)} /> units</label>
+                  <label>Discount <input type="number" min="0" max="100" value={tier.discountPercent} onChange={(event) => updateTier(index, "discountPercent", event.target.value)} />%</label>
+                  <button className="ms-icon-button" aria-label="Remove pricing tier" onClick={() => setPricing((current) => ({ ...current, tiers: current.tiers.filter((_, tierIndex) => tierIndex !== index) }))}><Trash2 size={16} /></button>
+                </div>
+              ))}
+            </div>
+            <button className="ms-add-tier" onClick={() => setPricing((current) => ({ ...current, tiers: [...current.tiers, { minimumQuantity: 100, discountPercent: 20 }] }))}><Plus size={16} /> Add quantity tier</button>
+            <label className="ms-loyalty-field">Loyalty customer discount
+              <span><input type="number" min="0" max="100" value={pricing.loyaltyDiscountPercent} onChange={(event) => setPricing((current) => ({ ...current, loyaltyDiscountPercent: event.target.value }))} />%</span>
+            </label>
+            <div className="ms-product-moq-settings">
+              <h4>Per-product bulk discount thresholds</h4>
+              {product_all_forma.map((product) => (
+                <label className="ms-moq-row" key={product.id}>
+                  <span>{product.name}</span>
+                  <span><input type="number" min="1" step="1" value={productMoqs[product.id]} onChange={(event) => setProductMoqs((current) => ({ ...current, [product.id]: event.target.value }))} /> units for discount</span>
+                </label>
+              ))}
+            </div>
+          </article>
+
+          <article className="ms-panel ms-customers-panel" id="customers">
+            <div className="ms-panel-heading">
+              <h3><UserCheck size={24} /> Registered Customers</h3>
+              <span className="ms-customer-count">{customers.length} registered</span>
+            </div>
+            <label className="ms-customer-search"><Search size={17} /><input value={customerSearch} onChange={(event) => setCustomerSearch(event.target.value)} placeholder="Search name or email..." /></label>
+            <div className="ms-customer-list">
+              {filteredCustomers.length ? filteredCustomers.map((customer) => (
+                <div className="ms-customer-row" key={customer.uid}>
+                  <span className="ms-customer-avatar">{customer.name.charAt(0).toUpperCase()}</span>
+                  <span className="ms-customer-details"><strong>{customer.name}</strong><small>{customer.email}</small></span>
+                  <button className={`ms-loyalty-toggle ${customer.isLoyal ? "active" : ""}`} onClick={() => setCustomerLoyalty(customer.uid, !customer.isLoyal)}>{customer.isLoyal ? "Loyal customer" : "Mark loyal"}</button>
+                </div>
+              )) : <p className="ms-empty-customers">No registered customers match your search.</p>}
+            </div>
+          </article>
         </section>
 
         <section className="ms-analytics-grid">

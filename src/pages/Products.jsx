@@ -1,10 +1,19 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { product_all_forma } from "../data/product";
 import "./Products.css";
+import { getPricingSettings, getProductMoq } from "../utils/pricing";
 
 export default function Products() {
+  const [pricingSettings, setPricingSettings] = useState(getPricingSettings);
+
+  useEffect(() => {
+    const refreshPricing = () => setPricingSettings(getPricingSettings());
+    window.addEventListener("pricing-settings-updated", refreshPricing);
+    return () => window.removeEventListener("pricing-settings-updated", refreshPricing);
+  }, []);
+
   return (
     <div className="products-page">
       <div className="products-heading">
@@ -34,6 +43,7 @@ export default function Products() {
               <p className="product-category">{product.category}</p>
 
               <h3>{product.name}</h3>
+              <p className="product-moq">Bulk discount from {getProductMoq(product, pricingSettings)} units · Smaller orders welcome</p>
 
               <div className="product-card-bottom">
                 <span className="product-price">

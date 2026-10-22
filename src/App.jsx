@@ -14,7 +14,8 @@ function App() {
   return (
     <BrowserRouter>
       <AuthGate>
-        <Routes>
+        <CartProvider>
+          <Routes>
 
  <Route
           path="/cart"
@@ -66,7 +67,8 @@ function App() {
         
         element={<AdminDashboard />}
       />
-        </Routes>
+          </Routes>
+        </CartProvider>
       </AuthGate>
     </BrowserRouter>
   );

@@ -38,6 +38,35 @@
 .ms-page-heading p { margin: 0; color: #5f6b88; font-size: 15px; }
 .ms-date, .ms-select { display: flex; align-items: center; gap: 10px; border: 1px solid #e1e4f1; background: white; color: #19223c; border-radius: 11px; padding: 12px 14px; font: inherit; font-size: 13px; white-space: nowrap; }
 .ms-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin-bottom: 18px; }
+.ms-management-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(320px,.85fr); gap: 17px; margin-bottom: 17px; }
+.ms-panel-description { margin: -4px 0 15px; color: #63708c; font-size: 12px; line-height: 1.5; }
+.ms-save-button, .ms-add-tier { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 8px; padding: 9px 11px; background: #eee7ff; color: #6435ed; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.ms-tier-list { display: grid; gap: 8px; }
+.ms-tier-row { display: flex; align-items: center; gap: 12px; padding: 9px; background: #f7f7fd; border-radius: 9px; color: #4f5b77; font-size: 12px; }
+.ms-tier-row label { display: flex; align-items: center; gap: 6px; }
+.ms-tier-row input, .ms-loyalty-field input { width: 58px; border: 1px solid #dfe2ef; border-radius: 6px; padding: 6px; background: white; font: inherit; }
+.ms-icon-button { margin-left: auto; display: grid; place-items: center; border: 0; background: transparent; color: #e04b59; cursor: pointer; }
+.ms-add-tier { margin-top: 10px; background: transparent; border: 1px dashed #c8b9f8; }
+.ms-loyalty-field { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding-top: 13px; border-top: 1px solid #edf0f7; color: #25304b; font-size: 12px; font-weight: 600; }
+.ms-loyalty-field span { display: flex; align-items: center; gap: 5px; }
+.ms-product-moq-settings { margin-top: 14px; padding-top: 13px; border-top: 1px solid #edf0f7; }
+.ms-product-moq-settings h4 { margin: 0 0 9px; color: #25304b; font-size: 12px; }
+.ms-product-moq-settings::after { content: "Customers can still order any quantity below this threshold."; display: block; margin-top: 8px; color: #63708c; font-size: 10px; }
+.ms-moq-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; color: #4f5b77; font-size: 11px; }
+.ms-moq-row > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-moq-row > span:last-child { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.ms-customer-count { color: #63708c; font-size: 11px; }
+.ms-customer-search { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid #e1e4f1; border-radius: 8px; color: #687491; }
+.ms-customer-search input { width: 100%; border: 0; outline: 0; font: inherit; font-size: 12px; }
+.ms-customer-list { display: grid; gap: 8px; margin-top: 12px; max-height: 198px; overflow-y: auto; }
+.ms-customer-row { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid #edf0f7; }
+.ms-customer-avatar { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; background: #eee7ff; color: #6435ed; font-size: 13px; font-weight: 700; }
+.ms-customer-details { display: grid; min-width: 0; flex: 1; }
+.ms-customer-details strong { overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+.ms-customer-details small { overflow: hidden; text-overflow: ellipsis; color: #63708c; font-size: 10px; }
+.ms-loyalty-toggle { white-space: nowrap; border: 1px solid #dfe2ef; border-radius: 7px; padding: 6px 8px; background: white; color: #63708c; font: inherit; font-size: 10px; cursor: pointer; }
+.ms-loyalty-toggle.active { border-color: #bcebd6; background: #e1f8ef; color: #07975a; }
+.ms-empty-customers { color: #63708c; font-size: 12px; }
 .ms-stat-card { display: flex; align-items: flex-start; gap: 16px; min-width: 0; padding: 21px 19px; min-height: 150px; background: white; border: 1px solid #f0f0fa; border-radius: 17px; box-shadow: 0 5px 20px #342a6b05; }
 .ms-stat-icon { flex-shrink: 0; width: 60px; height: 60px; display: grid; place-items: center; border-radius: 50%; }
 .ms-stat-icon.violet { background: #eee7ff; color: #6d3df3; }
@@ -98,7 +127,7 @@
   .ms-sidebar { width: 220px; }
   .ms-main { margin-left: 220px; padding-left: 18px; padding-right: 18px; }
   .ms-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
-  .ms-analytics-grid, .ms-bottom-grid { grid-template-columns: minmax(0,1fr); }
+  .ms-management-grid, .ms-analytics-grid, .ms-bottom-grid { grid-template-columns: minmax(0,1fr); }
   .ms-order-type-content { justify-content: flex-start; }
   .ms-donut { width: 185px; }
 }
