@@ -1,6 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { WalletCards } from "lucide-react";
 import { getCustomerCredit } from "../utils/customerStore";
@@ -8,17 +9,20 @@ import "./Navbar.css";
 
 function Navbar() {
   const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("All Categories");
   const [user, setUser] = useState(null);
   const [hasProfileImageError, setHasProfileImageError] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [creditBalance, setCreditBalance] = useState(() => getCustomerCredit(auth.currentUser?.uid));
   const profileRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setCreditBalance(getCustomerCredit(currentUser?.uid));
       setHasProfileImageError(false);
+      setIsProfileOpen(false);
     });
     return unsubscribe;
   }, []);
@@ -71,92 +75,116 @@ function Navbar() {
   );
   const profilePhotoUrl = googleProfile?.photoURL;
 
+  const handleSearch = (e) => {
+    e.preventDefault();
+
+    const params = new URLSearchParams();
+
+    if (search.trim()) {
+      params.set("search", search.trim());
+    }
+
+    if (category !== "All Categories") {
+      params.set("category", category);
+    }
+
+    navigate(`/products?${params.toString()}`);
+  };
+
   return (
     <>
       <div className="top-bar">
         Wholesale & Retail Shopping — Mayoor Store
       </div>
 
-      <nav className="navbar" >
-        {/* Logo */}
+      <nav className="navbar">
         <a href="/" className="logo">
           Mayoor<span>Store</span>
         </a>
 
-        {/* Search Bar */}
-        <form
-          className="search-box"
-          onSubmit={(e) => {
-            e.preventDefault();
-            console.log("Search:", search);
-          }}
-        >
+        <form className="search-box" onSubmit={handleSearch}>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            aria-label="Select product category"
+          >
+            <option>All Categories</option>
+            <option>Personal Care</option>
+            <option>Beauty & Makeup</option>
+            <option>Skincare</option>
+            <option>Hair Care</option>
+          </select>
+
           <input
             type="text"
             placeholder="Search products, brands..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+
           <button type="submit" aria-label="Search">
             🔍
           </button>
         </form>
 
-        {/* Navigation Links */}
         <div className="nav-links">
           <a href="/">Home</a>
           <a href="/products">Products</a>
           <a href="/b2b">B2B Wholesale</a>
         </div>
 
-        {/* Actions */}
         <div className="nav-actions">
-          <a href="/cart" className="cart-btn">
-            🛒 Cart
-          </a>
-          {user && (
+          {user ? (
             <>
               <div className="credit-balance" title="Available store credit">
                 <WalletCards size={17} />
                 <span>₹{creditBalance.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
               </div>
               <div className="profile-menu" ref={profileRef}>
-              <button
-                type="button"
-                className="profile-btn"
-                aria-label="Open profile menu"
-                aria-expanded={isProfileOpen}
-                onClick={() => setIsProfileOpen((isOpen) => !isOpen)}
-              >
-                {profilePhotoUrl && !hasProfileImageError ? (
-                  <img
-                    className="profile-avatar"
-                    src={profilePhotoUrl}
-                    alt={user.displayName || "Profile"}
-                    onError={() => setHasProfileImageError(true)}
-                  />
-                ) : (
-                  <span className="profile-avatar profile-initial">
-                    {profileInitial}
-                  </span>
-                )}
-              </button>
+                <button
+                  type="button"
+                  className="profile-btn"
+                  aria-label="Open profile menu"
+                  aria-expanded={isProfileOpen}
+                  onClick={() => setIsProfileOpen((isOpen) => !isOpen)}
+                >
+                  {profilePhotoUrl && !hasProfileImageError ? (
+                    <img
+                      className="profile-avatar"
+                      src={profilePhotoUrl}
+                      alt={user.displayName || "Profile"}
+                      onError={() => setHasProfileImageError(true)}
+                    />
+                  ) : (
+                    <span className="profile-avatar profile-initial">
+                      {profileInitial}
+                    </span>
+                  )}
+                </button>
 
-              {isProfileOpen && (
-                <div className="profile-dropdown">
-                  <span className="profile-email">{user.email}</span>
-                  <button
-                    type="button"
-                    className="logout-btn"
-                    onClick={() => signOut(auth)}
-                  >
-                    Logout
-                  </button>
-                </div>
-              )}
+                {isProfileOpen && (
+                  <div className="profile-dropdown">
+                    <span className="profile-email">{user.email}</span>
+                    <button
+                      type="button"
+                      className="logout-btn"
+                      onClick={() => signOut(auth)}
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
               </div>
             </>
+          ) : (
+            <a href="/login" className="login-btn">
+              Login
+            </a>
           )}
+
+          <a href="/cart" className="cart-btn">
+            🛒 Cart
+          </a>
         </div>
       </nav>
     </>
