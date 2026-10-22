@@ -9,8 +9,7 @@ import { calculatePrice, getPricingSettings, getProductMoq } from "../utils/pric
 
 export default function ProductView() {
   const { id } = useParams();
-  // const { addToCart, pricingSettings, isLoyalCustomer } = useCart();
- const { addToCart } = useCart();
+  const { addToCart, pricingSettings, isLoyalCustomer } = useCart();
   const navigate = useNavigate();
 
   // URL ID se product find karo
@@ -184,7 +183,7 @@ export default function ProductView() {
                 className="add-cart"
                 onClick={() =>
                  {
-                  addToCart(product, qty);
+                  addToCart(product, qty, size);
                   alert(`${qty} item(s) added to cart: ${product.name}`)
                   
                   addToCart(product, qty, size);
