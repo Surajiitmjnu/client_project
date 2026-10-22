@@ -11,6 +11,52 @@
   min-height: 100vh;
 }
 
+.store-notification {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(360px, calc(100vw - 32px));
+  padding: 13px 14px;
+  border: 1px solid #bcebd6;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #173f35;
+  box-shadow: 0 12px 30px rgba(23, 63, 53, 0.16);
+  font-size: 13px;
+  font-weight: 700;
+  animation: notification-in 0.22s ease-out;
+}
+
+.store-notification-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border-radius: 50%;
+  background: #dff8eb;
+  color: #0b9a5d;
+}
+
+.store-notification button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: #718078;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+@keyframes notification-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .breadcrumb {
   font-size: 12px;
   color: #777d9a;

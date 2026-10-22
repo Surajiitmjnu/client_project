@@ -23,6 +23,7 @@ export default function ProductView() {
   const [activeTab, setActiveTab] = useState("Description");
   const [pin, setPin] = useState("");
   const [message, setMessage] = useState("");
+  const [notification, setNotification] = useState("");
   const [currentPricing, setCurrentPricing] = useState(pricingSettings);
 
   // Product change hone par first image select karo
@@ -35,6 +36,12 @@ export default function ProductView() {
     window.addEventListener("pricing-settings-updated", refreshPricing);
     return () => window.removeEventListener("pricing-settings-updated", refreshPricing);
   }, []);
+
+  useEffect(() => {
+    if (!notification) return undefined;
+    const timeoutId = window.setTimeout(() => setNotification(""), 2800);
+    return () => window.clearTimeout(timeoutId);
+  }, [notification]);
 
   if (!product) {
     return (
@@ -64,6 +71,13 @@ export default function ProductView() {
 
   return (
     <div className="product-page">
+      {notification && (
+        <div className="store-notification" role="status" aria-live="polite">
+          <span className="store-notification-icon">✓</span>
+          <span>{notification}</span>
+          <button type="button" aria-label="Dismiss notification" onClick={() => setNotification("")}>×</button>
+        </div>
+      )}
       <div className="breadcrumb">
         Home › {product.category} › {product.name}
       </div>
@@ -181,16 +195,10 @@ export default function ProductView() {
             <div className="purchase-buttons">
               <button
                 className="add-cart"
-                onClick={() =>
-                 {
+                onClick={() => {
                   addToCart(product, qty, size);
-                  alert(`${qty} item(s) added to cart: ${product.name}`)
-                  
-                  addToCart(product, qty, size);
-                   navigate("/cart")
-                   
-                  
-                 
+                  setNotification(`${qty} ${qty === 1 ? "item" : "items"} added to your cart`);
+                  window.setTimeout(() => navigate("/cart"), 700);
                 }}
               >
                 🛒 Add to Cart
@@ -198,7 +206,11 @@ export default function ProductView() {
 
               <button
                 className="buy-now"
-                onClick={() => alert("Proceeding to checkout")}
+                onClick={() => {
+                  addToCart(product, qty, size);
+                  setNotification("Your item is ready for checkout");
+                  window.setTimeout(() => navigate("/cart"), 700);
+                }}
               >
                 ⚡ Buy Now
               </button>
