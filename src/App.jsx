@@ -6,13 +6,16 @@ import Products from "./pages/Products";
 import Home from "./pages/Home";
 import ProductView from "./pages/ProductView";
 import AdminDashboard from "./pages/AdminDashboard";
-import Cart from "./Cart"
-import { CartProvider } from "./context/CartContext";
+import Cart from "./pages/Cart.jsx"
+
+import { CartProvider } from "./context/CartContext.jsx";
+
 
 
 function App() {
   return (
     <BrowserRouter>
+    <CartProvider>
       <AuthGate>
         <CartProvider>
           <Routes>
@@ -70,6 +73,7 @@ function App() {
           </Routes>
         </CartProvider>
       </AuthGate>
+      </CartProvider>
     </BrowserRouter>
   );
 }
