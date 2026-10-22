@@ -1,9 +1,51 @@
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "../firebase";
 import "./Navbar.css";
 
 function Navbar() {
   const [search, setSearch] = useState("");
+  const [user, setUser] = useState(null);
+  const [hasProfileImageError, setHasProfileImageError] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setHasProfileImageError(false);
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (profileRef.current && !profileRef.current.contains(event.target)) {
+        setIsProfileOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setIsProfileOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
+  const profileInitial = (user?.email || user?.displayName || "?")
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+  const googleProfile = user?.providerData.find(
+    ({ providerId }) => providerId === "google.com",
+  );
+  const profilePhotoUrl = googleProfile?.photoURL;
 
   return (
     <>
@@ -45,12 +87,46 @@ function Navbar() {
 
         {/* Actions */}
         <div className="nav-actions">
-          <a href="/login" className="login-btn">
-            Login
-          </a>
           <a href="/cart" className="cart-btn">
             🛒 Cart
           </a>
+          {user && (
+            <div className="profile-menu" ref={profileRef}>
+              <button
+                type="button"
+                className="profile-btn"
+                aria-label="Open profile menu"
+                aria-expanded={isProfileOpen}
+                onClick={() => setIsProfileOpen((isOpen) => !isOpen)}
+              >
+                {profilePhotoUrl && !hasProfileImageError ? (
+                  <img
+                    className="profile-avatar"
+                    src={profilePhotoUrl}
+                    alt={user.displayName || "Profile"}
+                    onError={() => setHasProfileImageError(true)}
+                  />
+                ) : (
+                  <span className="profile-avatar profile-initial">
+                    {profileInitial}
+                  </span>
+                )}
+              </button>
+
+              {isProfileOpen && (
+                <div className="profile-dropdown">
+                  <span className="profile-email">{user.email}</span>
+                  <button
+                    type="button"
+                    className="logout-btn"
+                    onClick={() => signOut(auth)}
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </nav>
     </>

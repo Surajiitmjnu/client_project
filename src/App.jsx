@@ -1,10 +1,9 @@
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-
+import AuthGate from "../AuthGate";
 import Navbar from "./components/Navbar";
 import Products from "./pages/Products";
 import Home from "./pages/Home";
-import Login from "./pages/Login";
 import ProductView from "./pages/ProductView";
 import AdminDashboard from "./pages/AdminDashboard";
 import Cart from "./Cart"
@@ -14,8 +13,8 @@ import { CartProvider } from "./context/CartContext";
 function App() {
   return (
     <BrowserRouter>
-    
-      <Routes>
+      <AuthGate>
+        <Routes>
 
  <Route
           path="/cart"
@@ -40,6 +39,7 @@ function App() {
             </>
           }
         />
+        <Route path="/login" element={<Navigate to="/" replace />} />
         <Route
   path="/products"
   element={
@@ -66,12 +66,10 @@ function App() {
         
         element={<AdminDashboard />}
       />
-        <Route path="/login" element={<Login />} />
-        
-      </Routes>
+        </Routes>
+      </AuthGate>
     </BrowserRouter>
   );
 }
 
 export default App;
-

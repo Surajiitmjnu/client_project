@@ -1,11 +1,15 @@
 
 import React, { useState, useEffect } from "react";
 import "./ProductView.css";
-import { useParams } from "react-router-dom";
+import { useParams ,useNavigate} from "react-router-dom";
 import { product_all_forma } from "../data/product";
+import { useCart } from "../context/CartContext";
+
 
 export default function ProductView() {
   const { id } = useParams();
+ //const { addToCart } = useCart();
+  const navigate = useNavigate();
 
   // URL ID se product find karo
   const product = product_all_forma.find(
@@ -144,8 +148,12 @@ export default function ProductView() {
               <button
                 className="add-cart"
                 onClick={() =>
+                 {
                   alert(`${qty} item(s) added to cart: ${product.name}`)
-                }
+                   navigate("/cart")
+                  
+                 
+                }}
               >
                 🛒 Add to Cart
               </button>

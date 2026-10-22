@@ -10,41 +10,6 @@ const categories = [
 
 
 
-// const products = [
-//   {
-//     id: 1,
-//     name: "Daily Care Essentials",
-//     category: "Personal Care",
-//     price: 299,
-//     image:
-//       "https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=500&q=80",
-//   },
-//   {
-//     id: 2,
-//     name: "Beauty Care Collection",
-//     category: "Beauty & Makeup",
-//     price: 499,
-//     image:
-//       "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&w=500&q=80",
-//   },
-//   {
-//     id: 3,
-//     name: "Skin Care Essentials",
-//     category: "Skincare",
-//     price: 399,
-//     image:
-//       "https://images.unsplash.com/photo-1556229010-6c3f2c9ca5f8?auto=format&fit=crop&w=500&q=80",
-//   },
-//   {
-//     id: 4,
-//     name: "Premium Hair Care",
-//     category: "Hair Care",
-//     price: 349,
-//     image:
-//       "https://images.unsplash.com/photo-1527799820374-dcf8d9d4a388?auto=format&fit=crop&w=500&q=80",
-//   },
-// ];
-
 function Home() {
   return (
     <div className="home-page">
