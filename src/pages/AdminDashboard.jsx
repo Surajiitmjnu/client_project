@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import "./AdminDashboard.css";
 import { getPricingSettings, savePricingSettings } from "../utils/pricing";
-import { getRegisteredCustomers, setCustomerLoyalty } from "../utils/customerStore";
+import { getRegisteredCustomers, setCustomerCredit, setCustomerLoyalty } from "../utils/customerStore";
 import { product_all_forma } from "../data/product";
 
 const salesData = [
@@ -78,16 +78,29 @@ export default function AdminDashboard() {
   const [customers, setCustomers] = useState(getRegisteredCustomers);
   const [customerSearch, setCustomerSearch] = useState("");
   const [saved, setSaved] = useState(false);
+  const [creditAmounts, setCreditAmounts] = useState({});
   const [productMoqs, setProductMoqs] = useState(() =>
     Object.fromEntries(product_all_forma.map((product) => [product.id, getPricingSettings().productMoqs?.[product.id] || product.moq])),
   );
 
   useEffect(() => {
-    const refreshCustomers = () => setCustomers(getRegisteredCustomers());
+    const refreshCustomers = (event) => {
+      if (event.type === "customer-credit-updated" && event.detail?.uid) {
+        setCustomers((current) => current.map((customer) =>
+          customer.uid === event.detail.uid
+            ? { ...customer, creditBalance: Number(event.detail.amount) || 0 }
+            : customer,
+        ));
+        return;
+      }
+      setCustomers(getRegisteredCustomers());
+    };
     window.addEventListener("customer-settings-updated", refreshCustomers);
+    window.addEventListener("customer-credit-updated", refreshCustomers);
     window.addEventListener("storage", refreshCustomers);
     return () => {
       window.removeEventListener("customer-settings-updated", refreshCustomers);
+      window.removeEventListener("customer-credit-updated", refreshCustomers);
       window.removeEventListener("storage", refreshCustomers);
     };
   }, []);
@@ -201,6 +214,14 @@ export default function AdminDashboard() {
                   <span className="ms-customer-avatar">{customer.name.charAt(0).toUpperCase()}</span>
                   <span className="ms-customer-details"><strong>{customer.name}</strong><small>{customer.email}</small></span>
                   <button className={`ms-loyalty-toggle ${customer.isLoyal ? "active" : ""}`} onClick={() => setCustomerLoyalty(customer.uid, !customer.isLoyal)}>{customer.isLoyal ? "Loyal customer" : "Mark loyal"}</button>
+                  <span className="ms-credit-controls">
+                    <small>₹{customer.creditBalance.toLocaleString("en-IN")} credit</small>
+                    <input type="number" min="0" step="0.01" placeholder="Amount" value={creditAmounts[customer.uid] || ""} onChange={(event) => setCreditAmounts((current) => ({ ...current, [customer.uid]: event.target.value }))} />
+                    <button className="ms-credit-button" onClick={() => {
+                      setCustomerCredit(customer.uid, customer.creditBalance + Number(creditAmounts[customer.uid] || 0));
+                      setCreditAmounts((current) => ({ ...current, [customer.uid]: "" }));
+                    }}>Add credit</button>
+                  </span>
                 </div>
               )) : <p className="ms-empty-customers">No registered customers match your search.</p>}
             </div>

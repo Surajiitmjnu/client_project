@@ -66,6 +66,10 @@
 .ms-customer-details small { overflow: hidden; text-overflow: ellipsis; color: #63708c; font-size: 10px; }
 .ms-loyalty-toggle { white-space: nowrap; border: 1px solid #dfe2ef; border-radius: 7px; padding: 6px 8px; background: white; color: #63708c; font: inherit; font-size: 10px; cursor: pointer; }
 .ms-loyalty-toggle.active { border-color: #bcebd6; background: #e1f8ef; color: #07975a; }
+.ms-credit-controls { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.ms-credit-controls small { width: 100%; color: #159447; font-size: 10px; }
+.ms-credit-controls input { width: 70px; border: 1px solid #dfe2ef; border-radius: 6px; padding: 5px; font: inherit; font-size: 10px; }
+.ms-credit-button { border: 1px solid #bcebd6; border-radius: 6px; padding: 5px 7px; background: #e1f8ef; color: #07975a; font: inherit; font-size: 10px; cursor: pointer; }
 .ms-empty-customers { color: #63708c; font-size: 12px; }
 .ms-stat-card { display: flex; align-items: flex-start; gap: 16px; min-width: 0; padding: 21px 19px; min-height: 150px; background: white; border: 1px solid #f0f0fa; border-radius: 17px; box-shadow: 0 5px 20px #342a6b05; }
 .ms-stat-icon { flex-shrink: 0; width: 60px; height: 60px; display: grid; place-items: center; border-radius: 50%; }

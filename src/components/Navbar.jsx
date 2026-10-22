@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase";
+import { WalletCards } from "lucide-react";
+import { getCustomerCredit } from "../utils/customerStore";
 import "./Navbar.css";
 
 function Navbar() {
@@ -9,15 +11,37 @@ function Navbar() {
   const [user, setUser] = useState(null);
   const [hasProfileImageError, setHasProfileImageError] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [creditBalance, setCreditBalance] = useState(() => getCustomerCredit(auth.currentUser?.uid));
   const profileRef = useRef(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setCreditBalance(getCustomerCredit(currentUser?.uid));
       setHasProfileImageError(false);
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    const refreshCredit = (event) => {
+      if (event.type === "customer-credit-updated" && event.detail?.uid === user?.uid) {
+        setCreditBalance(Number(event.detail.amount) || 0);
+        return;
+      }
+      setCreditBalance(getCustomerCredit(user?.uid));
+    };
+    const intervalId = window.setInterval(() => {
+      setCreditBalance(getCustomerCredit(user?.uid));
+    }, 1000);
+    window.addEventListener("customer-credit-updated", refreshCredit);
+    window.addEventListener("storage", refreshCredit);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("customer-credit-updated", refreshCredit);
+      window.removeEventListener("storage", refreshCredit);
+    };
+  }, [user?.uid]);
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -91,7 +115,12 @@ function Navbar() {
             🛒 Cart
           </a>
           {user && (
-            <div className="profile-menu" ref={profileRef}>
+            <>
+              <div className="credit-balance" title="Available store credit">
+                <WalletCards size={17} />
+                <span>₹{creditBalance.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="profile-menu" ref={profileRef}>
               <button
                 type="button"
                 className="profile-btn"
@@ -125,7 +154,8 @@ function Navbar() {
                   </button>
                 </div>
               )}
-            </div>
+              </div>
+            </>
           )}
         </div>
       </nav>

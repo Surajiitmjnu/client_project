@@ -248,8 +248,15 @@
   font-size: 18px;
 }
 
-.quantity span {
-  padding: 0 12px;
+.quantity input {
+  width: 48px;
+  height: 34px;
+  border: 0;
+  outline: 0;
+  background: white;
+  color: #242644;
+  text-align: center;
+  font: inherit;
   font-size: 12px;
 }
 

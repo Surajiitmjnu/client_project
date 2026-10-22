@@ -1,5 +1,6 @@
 const CUSTOMERS_KEY = "mayoor-registered-customers";
 const LOYALTY_KEY = "mayoor-loyal-customers";
+const CREDIT_KEY = "mayoor-customer-credits";
 
 function readList(key) {
   try {
@@ -34,6 +35,7 @@ export function getRegisteredCustomers() {
   return readList(CUSTOMERS_KEY).map((customer) => ({
     ...customer,
     isLoyal: readList(LOYALTY_KEY).includes(customer.uid),
+    creditBalance: getCustomerCredit(customer.uid),
   }));
 }
 
@@ -46,4 +48,22 @@ export function setCustomerLoyalty(uid, isLoyal) {
 
 export function isLoyalCustomer(uid) {
   return Boolean(uid && readList(LOYALTY_KEY).includes(uid));
+}
+
+export function getCustomerCredit(uid) {
+  if (!uid) return 0;
+  const credits = readList(CREDIT_KEY);
+  const balance = credits.find((credit) => credit.uid === uid)?.amount;
+  return Number.isFinite(Number(balance)) ? Math.max(0, Number(balance)) : 0;
+}
+
+export function setCustomerCredit(uid, amount) {
+  if (!uid) return;
+  const credits = readList(CREDIT_KEY).filter((credit) => credit.uid !== uid);
+  const nextAmount = Math.max(0, Number(amount) || 0);
+  credits.push({ uid, amount: nextAmount });
+  localStorage.setItem(CREDIT_KEY, JSON.stringify(credits));
+  window.dispatchEvent(new CustomEvent("customer-credit-updated", {
+    detail: { uid, amount: nextAmount },
+  }));
 }

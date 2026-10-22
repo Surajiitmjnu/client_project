@@ -97,6 +97,24 @@
   background: #245b4c;
 }
 
+.credit-balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid #ead8ad;
+  border-radius: 20px;
+  background: #fff9eb;
+  color: #9a6810;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.credit-balance svg {
+  color: #d49a35;
+}
+
 .profile-menu {
   position: relative;
 }
@@ -203,6 +221,11 @@
     gap: 12px;
   }
 
+  .credit-balance {
+    padding: 7px 8px;
+    font-size: 12px;
+  }
+
   .profile-dropdown {
     right: 0;
   }
@@ -225,6 +248,10 @@
 
   .cart-btn {
     padding: 9px;
+  }
+
+  .credit-balance span {
+    display: none;
   }
 
   .profile-avatar {

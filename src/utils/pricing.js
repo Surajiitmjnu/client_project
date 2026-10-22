@@ -98,14 +98,22 @@ export function calculatePrice(price, quantity, settings, isLoyalCustomer, disco
   const baseAmount = Number(price) * quantity;
   const quantityDiscount = getQuantityDiscount(quantity, settings.tiers, discountThreshold);
   const loyaltyDiscount = isLoyalCustomer ? settings.loyaltyDiscountPercent : 0;
-  const discountPercent = Math.min(100, quantityDiscount + loyaltyDiscount);
+  const afterQuantityDiscount = baseAmount * (1 - quantityDiscount / 100);
+  const loyaltyDiscountAmount = afterQuantityDiscount * (loyaltyDiscount / 100);
+  const discountAmount = baseAmount - (afterQuantityDiscount - loyaltyDiscountAmount);
+  const finalAmount = afterQuantityDiscount - loyaltyDiscountAmount;
+  const discountPercent = baseAmount
+    ? Number(((discountAmount / baseAmount) * 100).toFixed(2))
+    : 0;
 
   return {
     baseAmount,
     quantityDiscount,
     loyaltyDiscount,
     discountPercent,
-    discountAmount: baseAmount * (discountPercent / 100),
-    finalAmount: baseAmount * (1 - discountPercent / 100),
+    quantityDiscountAmount: baseAmount - afterQuantityDiscount,
+    loyaltyDiscountAmount,
+    discountAmount,
+    finalAmount,
   };
 }

@@ -161,7 +161,19 @@ export default function ProductView() {
                 <button onClick={() => setQty(Math.max(1, qty - 1))}>
                   −
                 </button>
-                <span>{qty}</span>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={qty}
+                  aria-label={`Quantity for ${product.name}`}
+                  onChange={(event) => {
+                    const nextQuantity = Math.floor(Number(event.target.value));
+                    if (Number.isFinite(nextQuantity) && nextQuantity >= 1) {
+                      setQty(nextQuantity);
+                    }
+                  }}
+                />
                 <button onClick={() => setQty(qty + 1)}>+</button>
               </div>
             </div>
