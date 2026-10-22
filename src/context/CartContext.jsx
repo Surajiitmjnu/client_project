@@ -4,7 +4,7 @@ import { auth } from "../firebase";
 import { calculatePrice, getPricingSettings, getProductMoq } from "../utils/pricing";
 import { getCustomerCredit, isLoyalCustomer as checkLoyalty } from "../utils/customerStore";
 
-const CartContext = createContext();
+const CartContext = createContext(null);
 
 export function CartProvider({ children }) {
   const [cart, setCart] = useState(() => {
@@ -15,11 +15,13 @@ export function CartProvider({ children }) {
     }
   });
   const [settings, setSettings] = useState(getPricingSettings);
+  const [customerId, setCustomerId] = useState(auth.currentUser?.uid);
   const [loyalCustomer, setLoyalCustomer] = useState(() =>
     checkLoyalty(auth.currentUser?.uid),
   );
-  const [customerId, setCustomerId] = useState(auth.currentUser?.uid);
-  const [creditBalance, setCreditBalance] = useState(() => getCustomerCredit(auth.currentUser?.uid));
+  const [creditBalance, setCreditBalance] = useState(() =>
+    getCustomerCredit(auth.currentUser?.uid),
+  );
   const [useCredit, setUseCredit] = useState(false);
 
   useEffect(() => {
@@ -34,12 +36,12 @@ export function CartProvider({ children }) {
   }), []);
 
   useEffect(() => {
-    const refresh = () => setSettings(getPricingSettings());
-    window.addEventListener("pricing-settings-updated", refresh);
-    window.addEventListener("storage", refresh);
+    const refreshPricing = () => setSettings(getPricingSettings());
+    window.addEventListener("pricing-settings-updated", refreshPricing);
+    window.addEventListener("storage", refreshPricing);
     return () => {
-      window.removeEventListener("pricing-settings-updated", refresh);
-      window.removeEventListener("storage", refresh);
+      window.removeEventListener("pricing-settings-updated", refreshPricing);
+      window.removeEventListener("storage", refreshPricing);
     };
   }, []);
 
@@ -57,15 +59,15 @@ export function CartProvider({ children }) {
     const refreshCredit = (event) => {
       if (event.type === "customer-credit-updated" && event.detail?.uid === customerId) {
         setCreditBalance(Number(event.detail.amount) || 0);
-        return;
+      } else {
+        setCreditBalance(getCustomerCredit(customerId));
       }
-      setCreditBalance(getCustomerCredit(customerId));
     };
-    window.addEventListener("customer-credit-updated", refreshCredit);
-    window.addEventListener("storage", refreshCredit);
     const intervalId = window.setInterval(() => {
       setCreditBalance(getCustomerCredit(customerId));
     }, 1000);
+    window.addEventListener("customer-credit-updated", refreshCredit);
+    window.addEventListener("storage", refreshCredit);
     return () => {
       window.clearInterval(intervalId);
       window.removeEventListener("customer-credit-updated", refreshCredit);
@@ -73,37 +75,56 @@ export function CartProvider({ children }) {
     };
   }, [customerId]);
 
-  const addToCart = (product, quantity = 1) => {
+  const addToCart = (product, quantity = 1, size = "30 ml") => {
     setCart((prev) => {
-      const existing = prev.find((item) => String(item.id) === String(product.id));
+      const existing = prev.find(
+        (item) => String(item.id) === String(product.id) && item.size === size,
+      );
       if (existing) {
         return prev.map((item) =>
-          String(item.id) === String(product.id)
+          String(item.id) === String(product.id) && item.size === size
             ? { ...item, quantity: item.quantity + quantity }
             : item,
         );
       }
-      return [...prev, { ...product, quantity }];
+      return [...prev, {
+        ...product,
+        price: Number(product.price),
+        image: product.image || product.images?.[0],
+        quantity,
+        size,
+      }];
     });
   };
 
-  const increaseQuantity = (id) => setCart((prev) => prev.map((item) =>
-    String(item.id) === String(id) ? { ...item, quantity: item.quantity + 1 } : item,
+  const increaseQuantity = (id, size) => setCart((prev) => prev.map((item) =>
+    String(item.id) === String(id) && (size === undefined || item.size === size)
+      ? { ...item, quantity: item.quantity + 1 }
+      : item,
   ));
 
-  const decreaseQuantity = (id) => setCart((prev) => prev
-    .map((item) => String(item.id) === String(id) ? { ...item, quantity: item.quantity - 1 } : item)
+  const decreaseQuantity = (id, size) => setCart((prev) => prev
+    .map((item) =>
+      String(item.id) === String(id) && (size === undefined || item.size === size)
+        ? { ...item, quantity: item.quantity - 1 }
+        : item,
+    )
     .filter((item) => item.quantity > 0));
 
-  const setQuantity = (id, quantity) => {
+  const updateQuantity = (id, size, quantity) => {
     const nextQuantity = Math.floor(Number(quantity));
     if (!Number.isFinite(nextQuantity) || nextQuantity < 1) return;
     setCart((prev) => prev.map((item) =>
-      String(item.id) === String(id) ? { ...item, quantity: nextQuantity } : item,
+      String(item.id) === String(id) && (size === undefined || item.size === size)
+        ? { ...item, quantity: nextQuantity }
+        : item,
     ));
   };
 
-  const removeFromCart = (id) => setCart((prev) => prev.filter((item) => String(item.id) !== String(id)));
+  const setQuantity = (id, quantity) => updateQuantity(id, undefined, quantity);
+  const removeFromCart = (id, size) => setCart((prev) => prev.filter(
+    (item) => !(String(item.id) === String(id) && (size === undefined || item.size === size)),
+  ));
   const clearCart = () => setCart([]);
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const pricedItems = useMemo(
@@ -121,16 +142,17 @@ export function CartProvider({ children }) {
   );
   const subtotal = pricedItems.reduce((sum, item) => sum + item.pricing.baseAmount, 0);
   const discountAmount = pricedItems.reduce((sum, item) => sum + item.pricing.discountAmount, 0);
-  const creditApplied = useCredit ? Math.min(creditBalance, subtotal - discountAmount) : 0;
-  const payableAmount = subtotal - discountAmount - creditApplied;
+  const totalAmount = subtotal - discountAmount;
+  const creditApplied = useCredit ? Math.min(creditBalance, totalAmount) : 0;
 
   return (
     <CartContext.Provider value={{
       cart, pricedItems, addToCart, increaseQuantity, decreaseQuantity,
-      removeFromCart, clearCart, setQuantity, totalItems, subtotal, discountAmount,
-      totalAmount: subtotal - discountAmount, isLoyalCustomer: loyalCustomer,
-      creditBalance, useCredit, setUseCredit, creditApplied, payableAmount,
-      pricingSettings: settings,
+      updateQuantity, setQuantity, removeFromCart, clearCart, totalItems,
+      subtotal, discountAmount, totalAmount, rawTotalAmount: subtotal,
+      isLoyalCustomer: loyalCustomer, pricingSettings: settings,
+      creditBalance, useCredit, setUseCredit, creditApplied,
+      payableAmount: totalAmount - creditApplied,
     }}
     >
       {children}
