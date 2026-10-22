@@ -11,7 +11,12 @@ import {
 } from "recharts";
 import "./AdminDashboard.css";
 import { getPricingSettings, savePricingSettings } from "../utils/pricing";
-import { getRegisteredCustomers, setCustomerCredit, setCustomerLoyalty } from "../utils/customerStore";
+import {
+  getRegisteredCustomers,
+  setCustomerCredit,
+  setCustomerLoyalty,
+  subscribeToCustomers,
+} from "../utils/customerStore";
 import { product_all_forma } from "../data/product";
 
 const salesData = [
@@ -84,6 +89,15 @@ export default function AdminDashboard() {
   );
 
   useEffect(() => {
+    let unsubscribeFromCustomers = () => {};
+    try {
+      unsubscribeFromCustomers = subscribeToCustomers(
+        setCustomers,
+        (error) => console.error("Unable to load customers from Firestore:", error),
+      );
+    } catch (error) {
+      console.error("Unable to connect to Firestore customer directory:", error);
+    }
     const refreshCustomers = (event) => {
       if (event.type === "customer-credit-updated" && event.detail?.uid) {
         setCustomers((current) => current.map((customer) =>
@@ -99,6 +113,7 @@ export default function AdminDashboard() {
     window.addEventListener("customer-credit-updated", refreshCustomers);
     window.addEventListener("storage", refreshCustomers);
     return () => {
+      unsubscribeFromCustomers();
       window.removeEventListener("customer-settings-updated", refreshCustomers);
       window.removeEventListener("customer-credit-updated", refreshCustomers);
       window.removeEventListener("storage", refreshCustomers);
