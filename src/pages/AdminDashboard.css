@@ -1,0 +1,142 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #101832;
+  background: #f5f5ff;
+}
+* { box-sizing: border-box; }
+.ms-admin { min-height: 100vh; background: #f5f5ff; }
+.ms-topbar {
+  height: 82px; position: fixed; z-index: 20; inset: 0 0 auto 0;
+  display: flex; align-items: center; gap: 34px; padding: 0 28px;
+  background: rgba(255,255,255,.96); border-bottom: 1px solid #ececf6;
+}
+.ms-brand { display: flex; align-items: center; gap: 12px; min-width: 245px; text-decoration: none; color: inherit; }
+.ms-brand-mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; color: white; background: linear-gradient(145deg,#8755ff,#5a2fe7); box-shadow: 0 7px 18px #7040ed30; }
+.ms-brand strong { display: block; font-size: 20px; letter-spacing: -.6px; }
+.ms-brand small { display: block; color: #65708c; font-size: 12px; margin-top: 3px; }
+.ms-search { height: 46px; display: flex; align-items: center; gap: 12px; width: min(560px, 45vw); padding: 0 15px; border-radius: 13px; background: #f2f3fc; color: #687491; }
+.ms-search input { border: 0; outline: 0; background: transparent; width: 100%; color: #111a34; font: inherit; font-size: 14px; }
+.ms-account { display: flex; align-items: center; gap: 13px; margin-left: auto; }
+.ms-bell { position: relative; border: 0; background: transparent; color: #45516c; padding: 8px; }
+.ms-bell i { position: absolute; top: -1px; right: -1px; background: #f33e51; color: white; font-style: normal; font-size: 10px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; }
+.ms-avatar { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #6939ec; color: white; font-size: 20px; }
+.ms-admin-name { border: 0; background: transparent; display: flex; align-items: center; gap: 8px; font: inherit; font-size: 14px; font-weight: 600; }
+.ms-sidebar { position: fixed; top: 82px; bottom: 0; left: 0; width: 258px; padding: 20px 15px; display: flex; flex-direction: column; background: #f0f0ff; border-right: 1px solid #e5e6f5; }
+.ms-sidebar nav { display: grid; gap: 4px; }
+.ms-nav-link { min-height: 49px; display: flex; align-items: center; gap: 16px; padding: 0 15px; border-radius: 11px; color: #17213d; text-decoration: none; font-size: 14px; font-weight: 500; transition: background .2s,color .2s; }
+.ms-nav-link svg { color: #52617e; flex-shrink: 0; }
+.ms-nav-link:hover { background: #e4e0ff; }
+.ms-nav-link.active { background: linear-gradient(100deg,#7540f6,#6232e8); color: white; box-shadow: 0 5px 14px #6b3ae92b; }
+.ms-nav-link.active svg { color: white; }
+.ms-nav-chevron { margin-left: auto; transform: rotate(-90deg); }
+.ms-logout { border-top: 1px solid #d9dced; border-radius: 0; margin: auto 10px 12px; padding-top: 15px; }
+.ms-main { margin-left: 258px; padding: 108px 25px 24px; max-width: 1800px; }
+.ms-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin: 0 0 22px; }
+.ms-page-heading h1 { font-size: clamp(27px,2.5vw,36px); margin: 0 0 5px; letter-spacing: -1.2px; }
+.ms-page-heading p { margin: 0; color: #5f6b88; font-size: 15px; }
+.ms-date, .ms-select { display: flex; align-items: center; gap: 10px; border: 1px solid #e1e4f1; background: white; color: #19223c; border-radius: 11px; padding: 12px 14px; font: inherit; font-size: 13px; white-space: nowrap; }
+.ms-stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin-bottom: 18px; }
+.ms-stat-card { display: flex; align-items: flex-start; gap: 16px; min-width: 0; padding: 21px 19px; min-height: 150px; background: white; border: 1px solid #f0f0fa; border-radius: 17px; box-shadow: 0 5px 20px #342a6b05; }
+.ms-stat-icon { flex-shrink: 0; width: 60px; height: 60px; display: grid; place-items: center; border-radius: 50%; }
+.ms-stat-icon.violet { background: #eee7ff; color: #6d3df3; }
+.ms-stat-icon.rose { background: #ffe3e6; color: #ec5363; }
+.ms-stat-icon.blue { background: #e2eeff; color: #2674ee; }
+.ms-stat-icon.green { background: #dff8ee; color: #0eae70; }
+.ms-stat-info { min-width: 0; }
+.ms-stat-info p { margin: 5px 0 9px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.ms-stat-info h2 { margin: 0 0 8px; font-size: clamp(21px,1.9vw,28px); letter-spacing: -.8px; white-space: nowrap; }
+.ms-growth { display: block; color: #05ad65; font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.ms-stat-info small { color: #5f6b88; font-size: 12px; }
+.ms-analytics-grid { display: grid; grid-template-columns: minmax(0,1.75fr) minmax(300px,.9fr); gap: 17px; margin-bottom: 17px; }
+.ms-panel { background: white; border: 1px solid #f0f0fa; border-radius: 17px; padding: 18px 20px; min-width: 0; box-shadow: 0 5px 20px #342a6b04; }
+.ms-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.ms-panel-heading h3 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -.3px; }
+.ms-panel-heading h3 svg { color: #713cf2; }
+.ms-select { padding: 9px 12px; font-size: 12px; }
+.ms-chart { width: 100%; height: 215px; }
+.ms-order-type-content { display: flex; align-items: center; justify-content: space-around; gap: 12px; min-height: 215px; }
+.ms-donut { width: min(185px,52%); height: 185px; position: relative; flex-shrink: 0; }
+.ms-donut-label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.ms-donut-label strong { font-size: 20px; }
+.ms-donut-label span { color: #63708c; font-size: 12px; margin-top: 2px; }
+.ms-legend { display: grid; gap: 22px; }
+.ms-legend-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; white-space: nowrap; }
+.ms-legend-item i { width: 13px; height: 13px; border-radius: 50%; margin-top: 3px; }
+.ms-legend-item small { display: block; margin-top: 6px; color: #64708b; font-size: 12px; }
+.ms-bottom-grid { display: grid; grid-template-columns: minmax(0,1.75fr) minmax(300px,.9fr); gap: 17px; }
+.ms-view-all { display: inline-flex; align-items: center; gap: 5px; color: #6838ee; text-decoration: none; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.ms-table-wrap { overflow-x: auto; }
+.ms-orders-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; white-space: nowrap; }
+.ms-orders-table thead { background: #f4f5fb; }
+.ms-orders-table th { padding: 10px 9px; font-weight: 600; color: #25304b; }
+.ms-orders-table td { padding: 12px 9px; border-bottom: 1px solid #edf0f7; }
+.ms-orders-table tbody tr:last-child td { border-bottom: 0; }
+.ms-type-badge, .ms-status { display: inline-block; padding: 5px 9px; border-radius: 7px; font-size: 11px; font-weight: 600; }
+.ms-type-badge.retail { color: #6435ed; background: #eee7ff; }
+.ms-type-badge.b2b { color: #1670e9; background: #e4efff; }
+.ms-status.delivered { color: #07975a; background: #d9f8e9; }
+.ms-status.processing { color: #d67b00; background: #fff0d1; }
+.ms-status.shipped { color: #176de0; background: #deedff; }
+.ms-status.pending { color: #e23b43; background: #ffe2e3; }
+.ms-product-list { display: grid; gap: 9px; }
+.ms-product-row { display: grid; grid-template-columns: 42px minmax(0,1fr) auto; align-items: center; gap: 12px; min-height: 43px; font-size: 12px; }
+.ms-product-thumb { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 10px; color: #6940d9; background: #f1ebff; }
+.ms-product-thumb.cream { color: #cf777c; background: #fff0f1; }
+.ms-product-thumb.wash { color: #d98222; background: #fff4df; }
+.ms-product-thumb.kit { color: #159a83; background: #e1f8ef; }
+.ms-product-thumb.gel { color: #419d40; background: #e7f7df; }
+.ms-product-row small { color: #63708c; font-size: 12px; white-space: nowrap; }
+.ms-demo-note { color: #7a839b; font-size: 11px; text-align: right; margin: 15px 3px 0; }
+
+@media (min-width: 1500px) {
+  .ms-main { padding-left: 32px; padding-right: 32px; }
+  .ms-chart { height: 240px; }
+}
+@media (max-width: 1250px) {
+  .ms-sidebar { width: 220px; }
+  .ms-main { margin-left: 220px; padding-left: 18px; padding-right: 18px; }
+  .ms-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .ms-analytics-grid, .ms-bottom-grid { grid-template-columns: minmax(0,1fr); }
+  .ms-order-type-content { justify-content: flex-start; }
+  .ms-donut { width: 185px; }
+}
+@media (max-width: 760px) {
+  .ms-topbar { height: 72px; padding: 0 14px; gap: 10px; }
+  .ms-brand { min-width: 0; gap: 8px; }
+  .ms-brand-mark { width: 40px; height: 40px; }
+  .ms-brand strong { font-size: 15px; }
+  .ms-brand small { font-size: 10px; }
+  .ms-search { display: none; }
+  .ms-account { gap: 7px; }
+  .ms-avatar { width: 35px; height: 35px; }
+  .ms-admin-name { font-size: 12px; }
+  .ms-sidebar { top: 72px; width: 65px; padding: 14px 7px; }
+  .ms-nav-link { justify-content: center; padding: 0; min-height: 46px; }
+  .ms-nav-link span, .ms-nav-chevron { display: none; }
+  .ms-logout { margin-left: 0; margin-right: 0; }
+  .ms-main { margin-left: 65px; padding: 92px 12px 18px; }
+  .ms-page-heading { align-items: flex-start; flex-direction: column; }
+  .ms-page-heading h1 { font-size: 27px; }
+  .ms-page-heading p { font-size: 13px; line-height: 1.5; }
+  .ms-date { font-size: 11px; padding: 10px; }
+  .ms-stats { gap: 10px; }
+  .ms-stat-card { padding: 13px 11px; min-height: 125px; gap: 9px; flex-direction: column; }
+  .ms-stat-icon { width: 38px; height: 38px; }
+  .ms-stat-icon svg { width: 20px; }
+  .ms-stat-info p { margin: 0 0 5px; font-size: 11px; }
+  .ms-stat-info h2 { font-size: 20px; }
+  .ms-stat-info small { font-size: 10px; }
+  .ms-panel { padding: 14px 12px; }
+  .ms-panel-heading h3 { font-size: 14px; gap: 7px; }
+  .ms-chart { height: 205px; }
+  .ms-order-type-content { min-height: 180px; }
+  .ms-donut { width: 48%; height: 160px; }
+  .ms-legend-item { font-size: 11px; gap: 7px; }
+  .ms-legend-item small { font-size: 10px; }
+  .ms-product-row { grid-template-columns: 35px minmax(0,1fr) auto; gap: 8px; font-size: 11px; }
+  .ms-product-thumb { width: 34px; height: 34px; }
+  .ms-product-row small { font-size: 10px; }
+  .ms-demo-note { text-align: left; line-height: 1.5; }
+}

@@ -1,0 +1,141 @@
+
+* {
+  box-sizing: border-box;
+}
+
+.top-bar {
+  background: #173f35;
+  color: white;
+  text-align: center;
+  padding: 9px 12px;
+  font-size: 13px;
+}
+
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 5%;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.logo {
+  font-size: 25px;
+  font-weight: 800;
+  color: #173f35;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.logo span {
+  color: #d49a35;
+}
+
+.search-box {
+  display: flex;
+  flex: 1;
+  max-width: 390px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.search-box input {
+  width: 100%;
+  min-width: 0;
+  padding: 11px 12px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+}
+
+.search-box button {
+  padding: 0 15px;
+  border: none;
+  background: #f3f4f6;
+  cursor: pointer;
+}
+
+.nav-links,
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.nav-links a,
+.login-btn {
+  text-decoration: none;
+  color: #27352f;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.nav-links a:hover,
+.login-btn:hover {
+  color: #b7791f;
+}
+
+.cart-btn {
+  text-decoration: none;
+  color: white;
+  background: #173f35;
+  padding: 11px 15px;
+  border-radius: 7px;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.cart-btn:hover {
+  background: #245b4c;
+}
+
+/* Responsive layout for mobile */
+@media (max-width: 900px) {
+  .navbar {
+    flex-wrap: wrap;
+    gap: 15px;
+    padding: 15px 4%;
+  }
+
+  .search-box {
+    order: 3;
+    max-width: none;
+    flex-basis: 100%;
+  }
+
+  .nav-links {
+    order: 4;
+    flex-basis: 100%;
+    justify-content: center;
+    gap: 22px;
+  }
+
+  .nav-actions {
+    margin-left: auto;
+    gap: 12px;
+  }
+}
+
+@media (max-width: 420px) {
+  .logo {
+    font-size: 21px;
+  }
+
+  .nav-links {
+    gap: 14px;
+  }
+
+  .nav-links a,
+  .login-btn,
+  .cart-btn {
+    font-size: 12px;
+  }
+
+  .cart-btn {
+    padding: 9px;
+  }
+}
