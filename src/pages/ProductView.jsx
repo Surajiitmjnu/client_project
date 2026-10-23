@@ -4,14 +4,14 @@ import "./ProductView.css";
 import { useParams ,useNavigate} from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { calculatePrice, getPricingSettings, getProductMoq } from "../utils/pricing";
-import { getFallbackProducts, subscribeToProducts } from "../utils/productStore";
+import { subscribeToProducts } from "../utils/productStore";
 
 
 export default function ProductView() {
   const { id } = useParams();
   const { addToCart, pricingSettings, isLoyalCustomer } = useCart();
   const navigate = useNavigate();
-  const [products, setProducts] = useState(getFallbackProducts);
+  const [products, setProducts] = useState([]);
 
   // URL ID se product find karo
   const product = products.find(
@@ -36,12 +36,10 @@ export default function ProductView() {
     let unsubscribe = () => {};
     try {
       unsubscribe = subscribeToProducts((firestoreProducts) => {
-        if (firestoreProducts.length) {
-          setProducts(firestoreProducts.map((item) => ({
-            ...item,
-            images: item.images || [item.image].filter(Boolean),
-          })));
-        }
+        setProducts(firestoreProducts.map((item) => ({
+          ...item,
+          images: item.images || [item.image].filter(Boolean),
+        })));
       }, (error) => console.error("Unable to load product details:", error));
     } catch (error) {
       console.error("Unable to subscribe to product details:", error);
@@ -283,7 +281,7 @@ export default function ProductView() {
           <div className="side-card seller">
             <h4>▣ Sold by</h4>
             <b>Mayoor Store</b>
-            <p>Beauty & Personal Care</p>
+            <p>Quality products from our store</p>
             <p>⭐ 4.6 (12.5K+ ratings)</p>
             <a href="#store">View Store →</a>
           </div>

@@ -1,16 +1,47 @@
 
+import { useEffect, useMemo, useState } from "react";
 import "./Home.css";
-import { products } from "../data/product";
-const categories = [
-  { name: "Beauty & Makeup", icon: "💄" },
-  { name: "Skincare", icon: "🧴" },
-  { name: "Hair Care", icon: "💇" },
-  { name: "Personal Care", icon: "🧼" },
-];
-
-
+import { subscribeToProducts } from "../utils/productStore";
 
 function Home() {
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    let unsubscribe = () => {};
+    try {
+      unsubscribe = subscribeToProducts((firestoreProducts) => {
+        setProducts(firestoreProducts.map((product) => ({
+          ...product,
+          images: product.images || [product.image].filter(Boolean),
+        })));
+      }, (error) => console.error("Unable to load home page products:", error));
+    } catch (error) {
+      console.error("Unable to connect to home page products:", error);
+    }
+    return () => unsubscribe();
+  }, []);
+
+  const categories = useMemo(() => {
+    const iconByCategory = [
+      ["beauty", "💄"],
+      ["skin", "🧴"],
+      ["hair", "💇"],
+      ["care", "🧼"],
+    ];
+    const grouped = products.reduce((result, product) => {
+      const name = product.category || "Uncategorized";
+      if (!result[name]) result[name] = { name, count: 0 };
+      result[name].count += 1;
+      return result;
+    }, {});
+    return Object.values(grouped).map((category) => ({
+      ...category,
+      icon: iconByCategory.find(([keyword]) => category.name.toLowerCase().includes(keyword))?.[1] || "✨",
+    }));
+  }, [products]);
+
+  const heroProduct = products[0];
+
   return (
     <div className="home-page">
       {/* Hero Section */}
@@ -53,10 +84,14 @@ function Home() {
         </div>
 
         <div className="hero-visual">
-          <img
-            src={products[1].image}
-            alt="Beauty and personal care products"
-          />
+          {heroProduct ? (
+            <img
+              src={heroProduct.images?.[0] || heroProduct.image}
+              alt={heroProduct.name}
+            />
+          ) : (
+            <div className="hero-product-empty">Products from our store will appear here.</div>
+          )}
           <div className="floating-card">
             <span>✨</span>
             <div>
@@ -89,10 +124,14 @@ function Home() {
             >
               <span className="category-icon">{category.icon}</span>
               <h3>{category.name}</h3>
+              <small>{category.count} product{category.count === 1 ? "" : "s"}</small>
               <span className="category-arrow">↗</span>
             </a>
           ))}
         </div>
+        {!categories.length && (
+          <p className="empty-store-message">Categories from the store catalog will appear here.</p>
+        )}
       </section>
 
       {/* Featured Products */}
@@ -110,13 +149,13 @@ function Home() {
         </div>
 
         <div className="product-grid">
-          {products.map((product) => (
+          {products.slice(0, 4).map((product) => (
             <article className="product-card" key={product.id}>
               <a
                 href={`/products/${product.id}`}
                 className="product-image"
               >
-                <img src={product.image} alt={product.name} />
+                <img src={product.images?.[0] || product.image} alt={product.name} />
                 <span className="stock-badge">Explore</span>
               </a>
 
@@ -145,6 +184,9 @@ function Home() {
             </article>
           ))}
         </div>
+        {!products.length && (
+          <p className="empty-store-message">Products added to the store will appear here.</p>
+        )}
       </section>
 
       {/* B2B Banner */}
@@ -165,27 +207,29 @@ function Home() {
 
 
       
-{/* Skin Care Banner */}
+{/* Store Collection Banner */}
 <section className="skin-care-section">
   <div className="skin-care-image">
-    <img
-      src="https://images.unsplash.com/photo-1608248543803-ba4f8c70ae0b?auto=format&fit=crop&w=800&q=80"
-      alt="Skincare essentials"
-    />
+    {heroProduct && (
+      <img
+        src={heroProduct.images?.[0] || heroProduct.image}
+        alt={heroProduct.name}
+      />
+    )}
   </div>
 
   <div className="skin-care-content">
-    <h2>Your Skin Deserves<br />Better Care</h2>
+    <h2>Find Products<br />You’ll Love</h2>
 
     <ul>
-      <li>✓ Gentle formulas for everyday use</li>
-      <li>✓ Thoughtfully selected ingredients</li>
-      <li>✓ Visible results with consistent use</li>
-      <li>✓ Options for different skin types</li>
+      <li>✓ Browse the live store catalog</li>
+      <li>✓ Shop by the categories available now</li>
+      <li>✓ Clear pricing on every product</li>
+      <li>✓ Retail and wholesale options</li>
     </ul>
 
     <a href="/products" className="skin-care-btn">
-      Explore Skin Care →
+      Explore Products →
     </a>
   </div>
 </section>

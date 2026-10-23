@@ -3,12 +3,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import "./Products.css";
 import { getPricingSettings, getProductMoq } from "../utils/pricing";
-import { getFallbackProducts, subscribeToProducts } from "../utils/productStore";
+import { subscribeToProducts } from "../utils/productStore";
 
 export default function Products() {
   const location = useLocation();
   const [pricingSettings, setPricingSettings] = useState(getPricingSettings);
-  const [products, setProducts] = useState(getFallbackProducts);
+  const [products, setProducts] = useState([]);
 
   const queryParams = new URLSearchParams(location.search);
   const search = (queryParams.get("search") || "").toLowerCase().trim();
@@ -34,12 +34,10 @@ export default function Products() {
     let unsubscribe = () => {};
     try {
       unsubscribe = subscribeToProducts((firestoreProducts) => {
-        if (firestoreProducts.length) {
-          setProducts(firestoreProducts.map((product) => ({
-            ...product,
-            images: product.images || [product.image].filter(Boolean),
-          })));
-        }
+        setProducts(firestoreProducts.map((product) => ({
+          ...product,
+          images: product.images || [product.image].filter(Boolean),
+        })));
       }, (error) => console.error("Unable to load products for the store:", error));
     } catch (error) {
       console.error("Unable to subscribe to store products:", error);

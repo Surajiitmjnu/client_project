@@ -108,6 +108,17 @@
   border-radius: 18px;
 }
 
+.hero-product-empty {
+  display: grid;
+  place-items: center;
+  height: 410px;
+  padding: 30px;
+  border-radius: 18px;
+  background: #e7eee4;
+  color: #66736b;
+  text-align: center;
+}
+
 .floating-card {
   position: absolute;
   left: -25px;
@@ -197,6 +208,22 @@
 .category-card h3 {
   margin: 18px 0 0;
   font-size: 15px;
+}
+
+.category-card small {
+  display: block;
+  margin-top: 7px;
+  color: #758078;
+  font-size: 12px;
+}
+
+.empty-store-message {
+  margin: 0;
+  padding: 30px;
+  border: 1px dashed #cbd7c8;
+  border-radius: 12px;
+  color: #66736b;
+  text-align: center;
 }
 
 .category-arrow {
@@ -332,6 +359,10 @@
   }
 
   .hero-visual > img {
+    height: 280px;
+  }
+
+  .hero-product-empty {
     height: 280px;
   }
 
@@ -576,4 +607,3 @@
     gap: 10px;
   }
 }
-

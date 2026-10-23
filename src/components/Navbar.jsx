@@ -5,15 +5,13 @@ import { useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { WalletCards } from "lucide-react";
 import { getCustomerCredit } from "../utils/customerStore";
-import { getFallbackProducts, subscribeToProducts } from "../utils/productStore";
+import { subscribeToProducts } from "../utils/productStore";
 import "./Navbar.css";
 
 function Navbar() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("All Categories");
-  const [categories, setCategories] = useState(() => [...new Set(
-    getFallbackProducts().map((product) => product.category || "Uncategorized"),
-  )].sort());
+  const [categories, setCategories] = useState([]);
   const [user, setUser] = useState(null);
   const [hasProfileImageError, setHasProfileImageError] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -35,11 +33,9 @@ function Navbar() {
     let unsubscribe = () => {};
     try {
       unsubscribe = subscribeToProducts((products) => {
-        if (products.length) {
-          setCategories([...new Set(
-            products.map((product) => product.category || "Uncategorized"),
-          )].sort());
-        }
+        setCategories([...new Set(
+          products.map((product) => product.category || "Uncategorized"),
+        )].sort());
       }, (error) => console.error("Unable to load search categories:", error));
     } catch (error) {
       console.error("Unable to subscribe to search categories:", error);

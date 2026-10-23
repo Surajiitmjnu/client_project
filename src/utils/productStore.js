@@ -1,6 +1,5 @@
 import { collection, doc, getDocs, onSnapshot, writeBatch } from "firebase/firestore";
 import { db } from "../firebase";
-import { product_all_forma } from "../data/product";
 
 const PRODUCT_FIELDS = ["id", "name", "category", "price", "inventory", "moq", "image"];
 
@@ -32,18 +31,6 @@ function parseCsvLine(line) {
 function escapeCsvValue(value) {
   const text = String(value ?? "");
   return /[",\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
-}
-
-function fallbackProducts() {
-  return product_all_forma.map((product) => ({
-    id: String(product.id),
-    name: product.name,
-    category: product.category || "",
-    price: Number(product.price) || 0,
-    inventory: Number(product.inventory) || 0,
-    moq: Number(product.moq) || 1,
-    image: product.image || product.images?.[0] || "",
-  }));
 }
 
 export function parseProductCsv(csvText) {
@@ -114,8 +101,4 @@ export function productsToCsv(products) {
     rows.push(PRODUCT_FIELDS.map((field) => escapeCsvValue(product[field])).join(","));
   });
   return `${rows.join("\n")}\n`;
-}
-
-export function getFallbackProducts() {
-  return fallbackProducts();
 }

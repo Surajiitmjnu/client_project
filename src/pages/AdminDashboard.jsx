@@ -18,7 +18,6 @@ import {
   setCustomerLoyalty,
   subscribeToCustomers,
 } from "../utils/customerStore";
-import { product_all_forma } from "../data/product";
 import {
   importProducts,
   parseProductCsv,
@@ -65,9 +64,7 @@ function AdminDashboardContent({ onLogout }) {
   const [customerSearch, setCustomerSearch] = useState("");
   const [saved, setSaved] = useState(false);
   const [creditAmounts, setCreditAmounts] = useState({});
-  const [productMoqs, setProductMoqs] = useState(() =>
-    Object.fromEntries(product_all_forma.map((product) => [product.id, getPricingSettings().productMoqs?.[product.id] || product.moq])),
-  );
+  const [productMoqs, setProductMoqs] = useState(() => getPricingSettings().productMoqs || {});
   const [catalogProducts, setCatalogProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [ordersError, setOrdersError] = useState("");
