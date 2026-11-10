@@ -4,6 +4,7 @@ import { db } from "../firebase";
 const CUSTOMERS_KEY = "mayoor-registered-customers";
 const LOYALTY_KEY = "mayoor-loyal-customers";
 const CREDIT_KEY = "mayoor-customer-credits";
+const PROFILE_KEY = "mayoor-customer-profiles";
 
 function readList(key) {
   try {
@@ -12,6 +13,10 @@ function readList(key) {
   } catch {
     return [];
   }
+}
+
+function getProfileList() {
+  return readList(PROFILE_KEY);
 }
 
 export function registerCustomer(user) {
@@ -60,6 +65,69 @@ export async function syncCustomerProfile(user) {
   }
 }
 
+export function getCustomerProfile(uid) {
+  if (!uid) return null;
+  return getProfileList().find((profile) => profile.uid === uid) || null;
+}
+
+export async function saveCustomerProfile(uid, details) {
+  if (!uid) throw new Error("A signed-in customer is required.");
+  const existing = getCustomerProfile(uid);
+  const profile = {
+    ...existing,
+    ...details,
+    uid,
+    verificationStatus: "Pending",
+    updatedAt: new Date().toISOString(),
+  };
+  const profiles = getProfileList().filter((item) => item.uid !== uid);
+  localStorage.setItem(PROFILE_KEY, JSON.stringify([...profiles, profile]));
+  window.dispatchEvent(new CustomEvent("customer-profile-updated", { detail: profile }));
+  try {
+    await setDoc(doc(db, "customers", uid), {
+      ...details,
+      verificationStatus: "Pending",
+      updatedAt: profile.updatedAt,
+    }, { merge: true });
+    return { ...profile, syncStatus: "synced" };
+  } catch (error) {
+    console.error("Unable to save customer profile to Firestore:", error);
+    return { ...profile, syncStatus: "local" };
+  }
+}
+
+export async function setCustomerVerification(uid, verificationStatus) {
+  if (!uid) return;
+  const profiles = getProfileList();
+  const existing = profiles.find((profile) => profile.uid === uid) || { uid };
+  const profile = { ...existing, verificationStatus, updatedAt: new Date().toISOString() };
+  localStorage.setItem(PROFILE_KEY, JSON.stringify([
+    ...profiles.filter((item) => item.uid !== uid),
+    profile,
+  ]));
+  window.dispatchEvent(new CustomEvent("customer-profile-updated", { detail: profile }));
+  try {
+    await setDoc(doc(db, "customers", uid), {
+      verificationStatus,
+      updatedAt: profile.updatedAt,
+    }, { merge: true });
+  } catch (error) {
+    console.error("Unable to update customer verification in Firestore:", error);
+    throw error;
+  }
+}
+
+export function isCustomerVerified(uid) {
+  return getCustomerProfile(uid)?.verificationStatus === "Verified";
+}
+
+export function subscribeToCustomerProfile(uid, onProfile, onError) {
+  if (!uid) return () => {};
+  return onSnapshot(doc(db, "customers", uid), (snapshot) => {
+    if (snapshot.exists()) onProfile({ uid, ...snapshot.data() });
+  }, onError);
+}
+
 export function subscribeToCustomers(onCustomers, onError) {
   return onSnapshot(
     collection(db, "customers"),
@@ -77,6 +145,7 @@ export function subscribeToCustomers(onCustomers, onError) {
 export function getRegisteredCustomers() {
   return readList(CUSTOMERS_KEY).map((customer) => ({
     ...customer,
+    ...getCustomerProfile(customer.uid),
     isLoyal: readList(LOYALTY_KEY).includes(customer.uid),
     creditBalance: getCustomerCredit(customer.uid),
   }));

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   LayoutDashboard, Package, Grid2X2, ClipboardList, Users, Building2,
   Database, Tag, Star, ChartNoAxesColumnIncreasing, Settings, LogOut,
@@ -16,6 +16,7 @@ import {
   getRegisteredCustomers,
   setCustomerCredit,
   setCustomerLoyalty,
+  setCustomerVerification,
   subscribeToCustomers,
 } from "../utils/customerStore";
 import {
@@ -58,7 +59,7 @@ function StatCard({ icon: Icon, title, value, growth, tone }) {
 }
 
 function AdminDashboardContent({ onLogout }) {
-  const [activeSection, setActiveSection] = useState("dashboard");
+  const [activeSection, setActiveSection] = useState(() => window.location.hash.slice(1) || "dashboard");
   const [pricing, setPricing] = useState(getPricingSettings);
   const [customers, setCustomers] = useState(getRegisteredCustomers);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -74,6 +75,14 @@ function AdminDashboardContent({ onLogout }) {
   const [coupons, setCoupons] = useState([]);
   const [couponForm, setCouponForm] = useState({ code: "", discountPercent: 10 });
   const [couponMessage, setCouponMessage] = useState("");
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [readNotificationIds, setReadNotificationIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("mayoor-admin-read-notifications") || "[]");
+    } catch {
+      return [];
+    }
+  });
 
   useEffect(() => {
     let unsubscribeFromCustomers = () => {};
@@ -179,7 +188,8 @@ function AdminDashboardContent({ onLogout }) {
     setUpdatingOrderId(orderId);
     setOrdersError("");
     try {
-      await updateOrderStatus(orderId, status);
+      const order = orders.find((item) => item.id === orderId);
+      await updateOrderStatus(orderId, status, order);
       setOrders((current) => current.map((order) =>
         order.id === orderId ? { ...order, status } : order,
       ));
@@ -189,6 +199,19 @@ function AdminDashboardContent({ onLogout }) {
         : "Order status could not be updated. Please try again.");
     } finally {
       setUpdatingOrderId("");
+    }
+  };
+
+  const handleCustomerVerification = async (customer) => {
+    const verificationStatus = customer.verificationStatus === "Verified" ? "Pending" : "Verified";
+    try {
+      await setCustomerVerification(customer.uid, verificationStatus);
+      setCustomers((current) => current.map((item) =>
+        item.uid === customer.uid ? { ...item, verificationStatus } : item,
+      ));
+    } catch (error) {
+      console.error("Unable to update customer verification:", error);
+      setOrdersError("Customer verification could not be updated. Please try again.");
     }
   };
 
@@ -253,12 +276,52 @@ function AdminDashboardContent({ onLogout }) {
     new Date(second.createdAt || 0) - new Date(first.createdAt || 0),
   ).slice(0, 5);
   const money = (value) => `₹${Number(value || 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  const notifications = useMemo(() => {
+    const orderNotifications = orders
+      .filter((order) => order.status === "Pending")
+      .sort((first, second) => new Date(second.createdAt || 0) - new Date(first.createdAt || 0))
+      .slice(0, 8)
+      .map((order) => ({
+        id: `order-${order.orderId || order.id}-${order.status}`,
+        title: `Order ${order.orderId || String(order.id || "").slice(0, 8)} needs attention`,
+        detail: `${order.status} · ${money(order.total)}`,
+        section: "orders",
+      }));
+    const verificationNotifications = customers
+      .filter((customer) => customer.verificationStatus === "Pending")
+      .slice(0, 8)
+      .map((customer) => ({
+        id: `verification-${customer.uid}`,
+        title: "Customer verification requested",
+        detail: customer.name || customer.email || "Customer",
+        section: "customers",
+      }));
+    return [...orderNotifications, ...verificationNotifications];
+  }, [orders, customers]);
+  const unreadNotifications = notifications.filter(({ id }) => !readNotificationIds.includes(id));
+  const markNotificationsRead = (ids = notifications.map(({ id }) => id)) => {
+    const nextIds = [...new Set([...readNotificationIds, ...ids])];
+    setReadNotificationIds(nextIds);
+    localStorage.setItem("mayoor-admin-read-notifications", JSON.stringify(nextIds));
+  };
+  const handleNotificationClick = (notification) => {
+    markNotificationsRead([notification.id]);
+    setIsNotificationsOpen(false);
+    setActiveSection(notification.section);
+    window.history.replaceState(null, "", `${window.location.pathname}#${notification.section}`);
+  };
   const categories = [...new Set(catalogProducts.map((product) => product.category || "Uncategorized"))];
   const handleNavigation = (event, section) => {
     event.preventDefault();
     setActiveSection(section);
-    document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.history.replaceState(null, "", `${window.location.pathname}#${section}`);
   };
+
+  useEffect(() => {
+    const handleHashChange = () => setActiveSection(window.location.hash.slice(1) || "dashboard");
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   return (
     <div className="ms-admin">
@@ -272,7 +335,39 @@ function AdminDashboardContent({ onLogout }) {
           <input placeholder="Search products, orders, customers..." />
         </label>
         <div className="ms-account">
-          <button className="ms-bell" aria-label="Notifications"><Bell size={23} /><i>3</i></button>
+          <div className="ms-notification-menu">
+            <button
+              className="ms-bell"
+              type="button"
+              aria-label={`Notifications${unreadNotifications.length ? `, ${unreadNotifications.length} unread` : ""}`}
+              aria-expanded={isNotificationsOpen}
+              onClick={() => setIsNotificationsOpen((open) => !open)}
+            >
+              <Bell size={23} />
+              {unreadNotifications.length > 0 && <i>{Math.min(unreadNotifications.length, 99)}</i>}
+            </button>
+            {isNotificationsOpen && (
+              <div className="ms-notification-dropdown">
+                <div className="ms-notification-heading">
+                  <strong>Notifications</strong>
+                  {notifications.length > 0 && (
+                    <button type="button" onClick={() => markNotificationsRead()}>Mark all read</button>
+                  )}
+                </div>
+                {notifications.length > 0 ? notifications.map((notification) => (
+                  <button
+                    className={`ms-notification-item ${readNotificationIds.includes(notification.id) ? "read" : ""}`}
+                    type="button"
+                    key={notification.id}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <strong>{notification.title}</strong>
+                    <small>{notification.detail}</small>
+                  </button>
+                )) : <p className="ms-no-notifications">You’re all caught up.</p>}
+              </div>
+            )}
+          </div>
           <span className="ms-avatar">A</span>
           <button className="ms-admin-name">Admin <ChevronDown size={17} /></button>
         </div>
@@ -292,7 +387,7 @@ function AdminDashboardContent({ onLogout }) {
         <button type="button" onClick={onLogout} className="ms-nav-link ms-logout"><LogOut size={22} /><span>Logout</span></button>
       </aside>
 
-      <main className="ms-main">
+      <main className="ms-main" data-section={activeSection}>
         <div className="ms-page-heading">
           <div>
             <h1>Dashboard</h1>
@@ -378,6 +473,9 @@ function AdminDashboardContent({ onLogout }) {
                 <div className="ms-customer-row" key={customer.uid}>
                   <span className="ms-customer-avatar">{(customer.name || customer.email || "?").charAt(0).toUpperCase()}</span>
                   <span className="ms-customer-details"><strong>{customer.name || "Unnamed customer"}</strong><small>{customer.email || "No email"}</small></span>
+                  <button className={`ms-verification-toggle ${customer.verificationStatus === "Verified" ? "verified" : ""}`} onClick={() => handleCustomerVerification(customer)}>
+                    {customer.verificationStatus === "Verified" ? "Verified" : "Verify details"}
+                  </button>
                   <button className={`ms-loyalty-toggle ${customer.isLoyal ? "active" : ""}`} onClick={() => setCustomerLoyalty(customer.uid, !customer.isLoyal)}>{customer.isLoyal ? "Loyal customer" : "Mark loyal"}</button>
                   <span className="ms-credit-controls">
                     <small>₹{customer.creditBalance.toLocaleString("en-IN")} credit</small>
@@ -456,11 +554,11 @@ function AdminDashboardContent({ onLogout }) {
                   const orderStatus = String(order.status || "Pending");
                   const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : "—";
                   return <tr key={order.id}>
-                  <td>{String(order.id || "—").slice(0, 8)}</td><td>{order.customer || "Guest customer"}</td>
+                  <td>{order.orderId || String(order.id || "—").slice(0, 8)}</td><td>{order.customer || "Guest customer"}</td>
                   <td><span className={`ms-type-badge ${orderType.toLowerCase()}`}>{orderType}</span></td>
                   <td>{money(order.total)}</td><td><span className={`ms-status ${orderStatus.toLowerCase()}`}>{orderStatus}</span></td><td>{orderDate}</td>
                   <td><select className="ms-order-status-select" value={orderStatus} disabled={updatingOrderId === order.id} onChange={(event) => handleOrderStatusChange(order.id, event.target.value)} aria-label={`Fulfill order ${String(order.id || "").slice(0, 8)}`}>
-                    {["Pending", "Processing", "Shipped", "Delivered", "Cancelled"].map((status) => <option key={status} value={status}>{status}</option>)}
+                    {["Pending", "Shipped", "Delivered", "Cancelled"].map((status) => <option key={status} value={status}>{status}</option>)}
                   </select></td>
                 </tr>;
                 }) : <tr><td colSpan="7" className="ms-empty-customers">No orders have been placed yet.</td></tr>}</tbody>

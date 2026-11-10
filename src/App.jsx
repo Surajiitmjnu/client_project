@@ -7,6 +7,8 @@ import Home from "./pages/Home";
 import ProductView from "./pages/ProductView";
 import AdminDashboard from "./pages/AdminDashboard";
 import Cart from "./Cart.jsx";
+import Orders from "./pages/Orders";
+import Profile from "./pages/Profile";
 
 import { CartProvider } from "./context/CartContext.jsx";
 
@@ -26,6 +28,25 @@ function App() {
             </>
           }
         /> 
+
+        <Route
+          path="/orders"
+          element={
+            <>
+              <Navbar />
+              <Orders />
+            </>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <>
+              <Navbar />
+              <Profile />
+            </>
+          }
+        />
 
 
         <Route

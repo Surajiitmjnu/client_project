@@ -29,8 +29,19 @@
 .ms-search { height: 46px; display: flex; align-items: center; gap: 12px; width: min(560px, 45vw); padding: 0 15px; border-radius: 13px; background: #f2f3fc; color: #687491; }
 .ms-search input { border: 0; outline: 0; background: transparent; width: 100%; color: #111a34; font: inherit; font-size: 14px; }
 .ms-account { display: flex; align-items: center; gap: 13px; margin-left: auto; }
-.ms-bell { position: relative; border: 0; background: transparent; color: #45516c; padding: 8px; }
+.ms-notification-menu { position: relative; }
+.ms-bell { position: relative; border: 0; background: transparent; color: #45516c; padding: 8px; cursor: pointer; }
+.ms-bell:hover { color: #6232e8; }
 .ms-bell i { position: absolute; top: -1px; right: -1px; background: #f33e51; color: white; font-style: normal; font-size: 10px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; }
+.ms-notification-dropdown { position: absolute; top: calc(100% + 10px); right: -10px; z-index: 30; width: 310px; overflow: hidden; border: 1px solid #e1e4f1; border-radius: 12px; background: white; box-shadow: 0 12px 30px #28305226; }
+.ms-notification-heading { display: flex; align-items: center; justify-content: space-between; padding: 13px 14px; border-bottom: 1px solid #edf0f7; color: #25304b; font-size: 13px; }
+.ms-notification-heading button { border: 0; background: transparent; color: #6435ed; font: inherit; font-size: 11px; cursor: pointer; }
+.ms-notification-item { display: grid; gap: 4px; width: 100%; padding: 12px 14px; border: 0; border-bottom: 1px solid #f0f1f7; background: #f8f6ff; color: #25304b; text-align: left; cursor: pointer; }
+.ms-notification-item:hover { background: #eee7ff; }
+.ms-notification-item.read { background: white; }
+.ms-notification-item strong { font-size: 12px; }
+.ms-notification-item small { color: #63708c; font-size: 11px; }
+.ms-no-notifications { margin: 0; padding: 22px 14px; color: #63708c; font-size: 12px; text-align: center; }
 .ms-avatar { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #6939ec; color: white; font-size: 20px; }
 .ms-admin-name { border: 0; background: transparent; display: flex; align-items: center; gap: 8px; font: inherit; font-size: 14px; font-weight: 600; }
 .ms-sidebar { position: fixed; top: 82px; bottom: 0; left: 0; width: 258px; padding: 20px 15px; display: flex; flex-direction: column; background: #f0f0ff; border-right: 1px solid #e5e6f5; }
@@ -149,10 +160,11 @@
 .ms-orders-table td { padding: 12px 9px; border-bottom: 1px solid #edf0f7; }
 .ms-orders-table tbody tr:last-child td { border-bottom: 0; }
 .ms-type-badge, .ms-status { display: inline-block; padding: 5px 9px; border-radius: 7px; font-size: 11px; font-weight: 600; }
+.ms-verification-toggle { border: 1px solid #f0c36a; border-radius: 7px; padding: 6px 8px; background: #fff8e6; color: #946200; font: inherit; font-size: 11px; cursor: pointer; white-space: nowrap; }
+.ms-verification-toggle.verified { border-color: #9cddb7; background: #e2f8eb; color: #15803d; }
 .ms-type-badge.retail { color: #6435ed; background: #eee7ff; }
 .ms-type-badge.b2b { color: #1670e9; background: #e4efff; }
 .ms-status.delivered { color: #07975a; background: #d9f8e9; }
-.ms-status.processing { color: #d67b00; background: #fff0d1; }
 .ms-status.shipped { color: #176de0; background: #deedff; }
 .ms-status.pending { color: #e23b43; background: #ffe2e3; }
 .ms-status.cancelled { color: #70798f; background: #eceef4; }
@@ -218,4 +230,331 @@
   .ms-product-thumb { width: 34px; height: 34px; }
   .ms-product-row small { font-size: 10px; }
   .ms-demo-note { text-align: left; line-height: 1.5; }
+}
+
+/* Shared Mayoor Store visual language */
+.ms-admin {
+  --admin-green: #173f35;
+  --admin-green-soft: #edf5ef;
+  --admin-gold: #d49a35;
+  --admin-ink: #27352f;
+  --admin-muted: #6b7b72;
+  --admin-border: #e2ebe4;
+  background: #f7f8f6;
+  color: var(--admin-ink);
+}
+
+.ms-topbar {
+  height: 78px;
+  gap: 28px;
+  padding: 0 28px;
+  border-bottom-color: var(--admin-border);
+  box-shadow: 0 5px 20px rgba(23, 63, 53, .07);
+}
+
+.ms-brand-mark {
+  border-radius: 12px;
+  background: linear-gradient(145deg, #1d5a48, var(--admin-green));
+  box-shadow: 0 7px 18px rgba(23, 63, 53, .18);
+}
+
+.ms-brand strong,
+.ms-brand small {
+  color: var(--admin-ink);
+}
+
+.ms-brand small,
+.ms-page-heading p,
+.ms-stat-info small {
+  color: var(--admin-muted);
+}
+
+.ms-search,
+.ms-customer-search {
+  border: 1px solid var(--admin-border);
+  background: #f8fbf8;
+}
+
+.ms-search:focus-within,
+.ms-customer-search:focus-within {
+  border-color: #6fa88d;
+  box-shadow: 0 0 0 4px rgba(111, 168, 141, .13);
+}
+
+.ms-sidebar {
+  top: 78px;
+  width: 244px;
+  padding: 18px 13px;
+  background: #f1f7f2;
+  border-right-color: var(--admin-border);
+}
+
+.ms-nav-link {
+  min-height: 46px;
+  gap: 13px;
+  border-radius: 10px;
+  color: #526057;
+}
+
+.ms-nav-link svg {
+  color: #6b8876;
+}
+
+.ms-nav-link:hover {
+  background: #e3f0e5;
+  color: var(--admin-green);
+}
+
+.ms-nav-link.active {
+  background: linear-gradient(110deg, var(--admin-green), #27634f);
+  box-shadow: 0 6px 15px rgba(23, 63, 53, .17);
+}
+
+.ms-main {
+  margin-left: 244px;
+  padding: 104px 28px 30px;
+  background: #f7f8f6;
+}
+
+.ms-page-heading h1 {
+  color: var(--admin-green);
+  letter-spacing: -.8px;
+}
+
+.ms-date,
+.ms-select {
+  border-color: var(--admin-border);
+  border-radius: 10px;
+  color: var(--admin-ink);
+}
+
+.ms-stats {
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.ms-stat-card,
+.ms-panel {
+  border-color: var(--admin-border);
+  border-radius: 14px;
+  box-shadow: 0 6px 20px rgba(23, 63, 53, .055);
+}
+
+.ms-stat-card {
+  padding: 19px;
+}
+
+.ms-stat-icon.violet,
+.ms-stat-icon.blue,
+.ms-stat-icon.green {
+  background: var(--admin-green-soft);
+  color: var(--admin-green);
+}
+
+.ms-stat-icon.rose {
+  background: #fff7e8;
+  color: #b7791f;
+}
+
+.ms-stat-info p,
+.ms-stat-info h2,
+.ms-panel-heading h3,
+.ms-customer-details strong {
+  color: var(--admin-ink);
+}
+
+.ms-panel {
+  padding: 20px;
+}
+
+.ms-panel-heading h3 svg {
+  color: var(--admin-green);
+}
+
+.ms-panel-description,
+.ms-csv-format,
+.ms-customer-count,
+.ms-customer-details small {
+  color: var(--admin-muted);
+}
+
+.ms-catalog-button,
+.ms-save-button,
+.ms-add-tier,
+.coupon-box button {
+  border: 1px solid #cfe0d3;
+  background: var(--admin-green-soft);
+  color: var(--admin-green);
+}
+
+.ms-catalog-button:hover,
+.ms-save-button:hover,
+.coupon-box button:hover {
+  background: #dcece0;
+}
+
+.ms-tier-row,
+.ms-category-row,
+.ms-coupon-row {
+  background: #f8fbf8;
+  border: 1px solid #edf2ed;
+}
+
+.ms-customer-avatar {
+  background: #e4f0e6;
+  color: var(--admin-green);
+}
+
+.ms-loyalty-toggle.active,
+.ms-verification-toggle.verified {
+  border-color: #bce1c4;
+  background: #e5f5e8;
+  color: #287044;
+}
+
+.ms-orders-table thead {
+  background: #f1f7f2;
+}
+
+.ms-orders-table th {
+  color: var(--admin-green);
+}
+
+.ms-orders-table td {
+  border-bottom-color: #edf2ed;
+}
+
+.ms-order-status-select {
+  border-color: #cfe0d3;
+  color: var(--admin-ink);
+}
+
+.ms-type-badge.retail {
+  color: var(--admin-green);
+  background: #e5f2e7;
+}
+
+.ms-status.shipped {
+  color: #266d67;
+  background: #e1f3ef;
+}
+
+.ms-status.pending {
+  color: #a64e37;
+  background: #fff0e8;
+}
+
+.ms-status.delivered {
+  color: #287044;
+  background: #e5f5e8;
+}
+
+.ms-notification-dropdown {
+  border-color: var(--admin-border);
+  box-shadow: 0 14px 30px rgba(23, 63, 53, .15);
+}
+
+.ms-notification-item {
+  background: #f8fbf8;
+}
+
+.ms-notification-item:hover {
+  background: #eaf4eb;
+}
+
+@media (max-width: 1250px) {
+  .ms-sidebar {
+    width: 220px;
+  }
+
+  .ms-main {
+    margin-left: 220px;
+  }
+}
+
+@media (max-width: 760px) {
+  .ms-topbar {
+    height: 72px;
+  }
+
+  .ms-sidebar {
+    top: 72px;
+  }
+
+  .ms-main {
+    margin-left: 65px;
+    padding: 92px 12px 18px;
+  }
+
+  .ms-panel {
+    padding: 16px 13px;
+  }
+}
+
+/* Each sidebar item is an independent admin view. */
+.ms-main[data-section] > :not(.ms-page-heading) {
+  display: none;
+}
+
+.ms-main[data-section="dashboard"] > .ms-stats,
+.ms-main[data-section="dashboard"] > .ms-analytics-grid {
+  display: grid;
+}
+
+.ms-main[data-section="dashboard"] > .ms-bottom-grid,
+.ms-main[data-section="dashboard"] > .ms-bottom-grid .ms-products-panel {
+  display: block;
+}
+
+.ms-main[data-section="products"] > .ms-catalog-panel,
+.ms-main[data-section="orders"] > .ms-bottom-grid,
+.ms-main[data-section="analytics"] > .ms-analytics-grid,
+.ms-main[data-section="inventory"] > .ms-operations-grid,
+.ms-main[data-section="categories"] > .ms-operations-grid,
+.ms-main[data-section="b2b-buyers"] > .ms-operations-grid {
+  display: grid;
+}
+
+.ms-main[data-section="coupons-&-offers"] > .ms-management-grid,
+.ms-main[data-section="customers"] > .ms-management-grid {
+  display: grid;
+}
+
+.ms-main[data-section="reviews"] > .ms-operations-grid,
+.ms-main[data-section="settings"] > .ms-operations-grid {
+  display: grid;
+}
+
+.ms-main[data-section="dashboard"] > .ms-bottom-grid .ms-recent-panel,
+.ms-main[data-section="orders"] > .ms-bottom-grid .ms-products-panel,
+.ms-main[data-section="customers"] > .ms-management-grid .ms-pricing-panel,
+.ms-main[data-section="coupons-&-offers"] > .ms-management-grid .ms-customers-panel,
+.ms-main[data-section="inventory"] > .ms-operations-grid > :not(#inventory),
+.ms-main[data-section="categories"] > .ms-operations-grid > :not(#categories),
+.ms-main[data-section="b2b-buyers"] > .ms-operations-grid > :not(#b2b-buyers),
+.ms-main[data-section="reviews"] > .ms-operations-grid > :not(#reviews),
+.ms-main[data-section="settings"] > .ms-operations-grid > :not(#settings) {
+  display: none;
+}
+
+.ms-main[data-section="orders"] > .ms-bottom-grid,
+.ms-main[data-section="dashboard"] > .ms-bottom-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ms-main[data-section="customers"] > .ms-management-grid,
+.ms-main[data-section="coupons-&-offers"] > .ms-management-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ms-main[data-section="inventory"] > .ms-operations-grid,
+.ms-main[data-section="categories"] > .ms-operations-grid,
+.ms-main[data-section="b2b-buyers"] > .ms-operations-grid,
+.ms-main[data-section="reviews"] > .ms-operations-grid,
+.ms-main[data-section="settings"] > .ms-operations-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ms-main[data-section="dashboard"] > .ms-bottom-grid .ms-products-panel {
+  display: block;
 }

@@ -4,7 +4,7 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { WalletCards } from "lucide-react";
-import { getCustomerCredit } from "../utils/customerStore";
+import { getCustomerCredit, getCustomerProfile } from "../utils/customerStore";
 import { subscribeToProducts } from "../utils/productStore";
 import "./Navbar.css";
 
@@ -16,6 +16,7 @@ function Navbar() {
   const [hasProfileImageError, setHasProfileImageError] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [creditBalance, setCreditBalance] = useState(() => getCustomerCredit(auth.currentUser?.uid));
+  const [profile, setProfile] = useState(() => getCustomerProfile(auth.currentUser?.uid));
   const profileRef = useRef(null);
   const navigate = useNavigate();
 
@@ -23,6 +24,7 @@ function Navbar() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       setCreditBalance(getCustomerCredit(currentUser?.uid));
+      setProfile(getCustomerProfile(currentUser?.uid));
       setHasProfileImageError(false);
       setIsProfileOpen(false);
     });
@@ -64,6 +66,22 @@ function Navbar() {
   }, [user?.uid]);
 
   useEffect(() => {
+    const refreshProfile = (event) => {
+      if (event.type === "customer-profile-updated" && event.detail?.uid === user?.uid) {
+        setProfile(event.detail);
+      } else {
+        setProfile(getCustomerProfile(user?.uid));
+      }
+    };
+    window.addEventListener("customer-profile-updated", refreshProfile);
+    window.addEventListener("storage", refreshProfile);
+    return () => {
+      window.removeEventListener("customer-profile-updated", refreshProfile);
+      window.removeEventListener("storage", refreshProfile);
+    };
+  }, [user?.uid]);
+
+  useEffect(() => {
     const handleOutsideClick = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) {
         setIsProfileOpen(false);
@@ -82,14 +100,14 @@ function Navbar() {
     };
   }, []);
 
-  const profileInitial = (user?.email || user?.displayName || "?")
+  const profileInitial = (profile?.fullName || user?.email || user?.displayName || "?")
     .trim()
     .charAt(0)
     .toUpperCase();
   const googleProfile = user?.providerData.find(
     ({ providerId }) => providerId === "google.com",
   );
-  const profilePhotoUrl = googleProfile?.photoURL;
+  const profilePhotoUrl = profile?.photoDataUrl || googleProfile?.photoURL;
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -153,6 +171,7 @@ function Navbar() {
         <div className="nav-links">
           <a href="/">Home</a>
           <a href="/products">Products</a>
+          <a href="/orders">Orders</a>
           <a href="/b2b">B2B Wholesale</a>
         </div>
 
@@ -175,7 +194,7 @@ function Navbar() {
                     <img
                       className="profile-avatar"
                       src={profilePhotoUrl}
-                      alt={user.displayName || "Profile"}
+                      alt={profile?.fullName || user.displayName || "Profile"}
                       onError={() => setHasProfileImageError(true)}
                     />
                   ) : (
@@ -188,6 +207,26 @@ function Navbar() {
                 {isProfileOpen && (
                   <div className="profile-dropdown">
                     <span className="profile-email">{user.email}</span>
+                    <button
+                      type="button"
+                      className="orders-link-btn"
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        navigate("/profile");
+                      }}
+                    >
+                      Profile details
+                    </button>
+                    <button
+                      type="button"
+                      className="orders-link-btn"
+                      onClick={() => {
+                        setIsProfileOpen(false);
+                        navigate("/orders");
+                      }}
+                    >
+                      My Orders
+                    </button>
                     <button
                       type="button"
                       className="logout-btn"

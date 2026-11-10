@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { auth } from "./firebase";
 import { useCart } from "./context/CartContext";
 import { setCustomerCredit } from "./utils/customerStore";
-import { createLocalOrder, createOrder } from "./utils/orderStore";
+import { getCustomerProfile } from "./utils/customerStore";
+import { createLocalOrder, createOrder, generateOrderId } from "./utils/orderStore";
 import { openRazorpayCheckout } from "./utils/razorpay";
 import "./Cart.css";
 
@@ -37,13 +38,35 @@ export default function Cart() {
     couponCode, setCouponCode, appliedCoupon, couponDiscount, applyCoupon, removeCoupon,
   } = useCart();
   const [couponError, setCouponError] = useState("");
+  const [profile, setProfile] = useState(() => getCustomerProfile(auth.currentUser?.uid));
+
+  useEffect(() => {
+    const refreshProfile = (event) => {
+      if (event.type === "customer-profile-updated" && event.detail?.uid === auth.currentUser?.uid) {
+        setProfile(event.detail);
+      } else {
+        setProfile(getCustomerProfile(auth.currentUser?.uid));
+      }
+    };
+    window.addEventListener("customer-profile-updated", refreshProfile);
+    window.addEventListener("storage", refreshProfile);
+    return () => {
+      window.removeEventListener("customer-profile-updated", refreshProfile);
+      window.removeEventListener("storage", refreshProfile);
+    };
+  }, []);
 
   const handleCheckout = async () => {
     if (!cart.length || payableAmount < 0 || isCheckingOut) return;
+    if (profile?.verificationStatus !== "Verified") {
+      setCheckoutError("Your profile must be verified before placing an order.");
+      return;
+    }
     setCheckoutError("");
     setIsCheckingOut(true);
 
     const order = {
+      orderId: generateOrderId(),
       createdAt: new Date().toISOString(),
       items: cart.map(({ id, name, quantity, price }) => ({ id, name, quantity, price })),
       total: payableAmount,
@@ -51,9 +74,16 @@ export default function Cart() {
       gstPercent: 20,
       gstAmount,
       creditApplied,
+      paymentStatus: payableAmount === 0 ? "Paid" : "Pending",
       status: "Pending",
       type: "Retail",
       customer: auth.currentUser?.displayName || auth.currentUser?.email || "Guest customer",
+      customerEmail: auth.currentUser?.email || "",
+      customerName: profile.fullName || auth.currentUser?.displayName || auth.currentUser?.email || "Customer",
+      phone: profile.phone,
+      shopName: profile.shopName,
+      shopAddress: profile.shopAddress,
+      gstin: profile.gstin,
       customerId: auth.currentUser?.uid || null,
     };
     try {
@@ -70,6 +100,7 @@ export default function Cart() {
               mode: "test",
               paymentId: payment.razorpay_payment_id,
             };
+            order.paymentStatus = "Paid";
             try {
               const savedOrder = await withTimeout(createOrder(order), CHECKOUT_TIMEOUT_MS);
               order.id = savedOrder.id;
@@ -107,7 +138,7 @@ export default function Cart() {
       <div className="empty-cart checkout-success">
         <div className="empty-icon">✅</div>
         <h1>Order placed successfully</h1>
-        <p>Order {orderConfirmation.id} has been placed.</p>
+        <p>Order {orderConfirmation.orderId} has been placed.</p>
         {orderConfirmation.syncStatus === "pending" && (
           <p className="checkout-sync-note">Your order is saved on this device and will sync when the store connection is restored.</p>
         )}
@@ -182,7 +213,10 @@ export default function Cart() {
         <div className="summary-row"><span>GST (20%)</span><strong>{money(gstAmount)}</strong></div>
         <div className="summary-total"><span>Total</span><strong>{money(payableAmount)}</strong></div>
         {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
-        <button className="checkout-btn" type="button" disabled={isCheckingOut} onClick={handleCheckout}>
+        {profile?.verificationStatus !== "Verified" && (
+          <p className="checkout-error">Complete your profile and wait for admin verification before ordering. <Link to="/profile">Open profile</Link></p>
+        )}
+        <button className="checkout-btn" type="button" disabled={isCheckingOut || profile?.verificationStatus !== "Verified"} onClick={handleCheckout}>
           {isCheckingOut ? "Placing order..." : "Proceed to Checkout"}
         </button>
         <p className="secure-payment">Secure checkout • Inclusive of all taxes</p>
