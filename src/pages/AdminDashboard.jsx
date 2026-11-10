@@ -75,6 +75,7 @@ function AdminDashboardContent({ onLogout }) {
   const [coupons, setCoupons] = useState([]);
   const [couponForm, setCouponForm] = useState({ code: "", discountPercent: 10 });
   const [couponMessage, setCouponMessage] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [readNotificationIds, setReadNotificationIds] = useState(() => {
     try {
@@ -213,6 +214,10 @@ function AdminDashboardContent({ onLogout }) {
       console.error("Unable to update customer verification:", error);
       setOrdersError("Customer verification could not be updated. Please try again.");
     }
+  };
+
+  const openCustomerDetails = (customer) => {
+    setSelectedCustomer(customer);
   };
 
   const handleSaveCoupon = async (event) => {
@@ -473,6 +478,9 @@ function AdminDashboardContent({ onLogout }) {
                 <div className="ms-customer-row" key={customer.uid}>
                   <span className="ms-customer-avatar">{(customer.name || customer.email || "?").charAt(0).toUpperCase()}</span>
                   <span className="ms-customer-details"><strong>{customer.name || "Unnamed customer"}</strong><small>{customer.email || "No email"}</small></span>
+                  <button className="ms-details-button" type="button" onClick={() => openCustomerDetails(customer)}>
+                    View details
+                  </button>
                   <button className={`ms-verification-toggle ${customer.verificationStatus === "Verified" ? "verified" : ""}`} onClick={() => handleCustomerVerification(customer)}>
                     {customer.verificationStatus === "Verified" ? "Verified" : "Verify details"}
                   </button>
@@ -603,6 +611,51 @@ function AdminDashboardContent({ onLogout }) {
         </section>
         {(ordersError || catalogError) && <p className="ms-catalog-error">{ordersError || catalogError}</p>}
       </main>
+      {selectedCustomer && (
+        <div className="ms-customer-modal-backdrop" role="presentation" onClick={(event) => {
+          if (event.target === event.currentTarget) setSelectedCustomer(null);
+        }}>
+          <section className="ms-customer-modal" role="dialog" aria-modal="true" aria-labelledby="customer-details-title">
+            <div className="ms-modal-heading">
+              <div>
+                <p className="ms-modal-eyebrow">VERIFICATION REVIEW</p>
+                <h2 id="customer-details-title">Customer details</h2>
+              </div>
+              <button type="button" className="ms-modal-close" onClick={() => setSelectedCustomer(null)} aria-label="Close customer details">×</button>
+            </div>
+            <div className="ms-customer-profile-summary">
+              {selectedCustomer.photoDataUrl ? (
+                <img src={selectedCustomer.photoDataUrl} alt={selectedCustomer.fullName || "Customer"} />
+              ) : (
+                <span>{(selectedCustomer.fullName || selectedCustomer.name || selectedCustomer.email || "?").charAt(0).toUpperCase()}</span>
+              )}
+              <div><strong>{selectedCustomer.fullName || selectedCustomer.name || "Unnamed customer"}</strong><small>{selectedCustomer.email || "Email unavailable"}</small></div>
+              <span className={`ms-verification-status ${selectedCustomer.verificationStatus === "Verified" ? "verified" : ""}`}>
+                {selectedCustomer.verificationStatus || "Not submitted"}
+              </span>
+            </div>
+            <div className="ms-customer-detail-grid">
+              <div><small>Mobile number</small><strong>{selectedCustomer.phone || "Not provided"}</strong></div>
+              <div><small>GSTIN</small><strong>{selectedCustomer.gstin || "Not provided"}</strong></div>
+              <div><small>Shop name</small><strong>{selectedCustomer.shopName || "Not provided"}</strong></div>
+              <div className="ms-detail-wide"><small>Shop address</small><strong>{selectedCustomer.shopAddress || "Not provided"}</strong></div>
+            </div>
+            <p className="ms-verification-help">Review the submitted identity, shop, and GSTIN details before approving this customer.</p>
+            <div className="ms-modal-actions">
+              <button type="button" className={`ms-verification-toggle ${selectedCustomer.verificationStatus === "Verified" ? "verified" : ""}`} onClick={async () => {
+                await handleCustomerVerification(selectedCustomer);
+                setSelectedCustomer((current) => current ? {
+                  ...current,
+                  verificationStatus: current.verificationStatus === "Verified" ? "Pending" : "Verified",
+                } : current);
+              }}>
+                {selectedCustomer.verificationStatus === "Verified" ? "Revoke verification" : "Verify customer"}
+              </button>
+              <button type="button" className="ms-modal-secondary" onClick={() => setSelectedCustomer(null)}>Close</button>
+            </div>
+          </section>
+        </div>
+      )}
     </div>
   );
 }

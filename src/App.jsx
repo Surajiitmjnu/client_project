@@ -15,9 +15,14 @@ import { CartProvider } from "./context/CartContext.jsx";
 function App() {
   return (
     <BrowserRouter>
-      <AuthGate>
-        <CartProvider>
-          <Routes>
+      <Routes>
+        <Route path="/admin" element={<AdminDashboard />} />
+        <Route
+          path="*"
+          element={(
+            <AuthGate>
+              <CartProvider>
+                <Routes>
 
  <Route
           path="/cart"
@@ -83,14 +88,12 @@ function App() {
           }
         />
        
-         <Route
-        path="/admin"
-        
-        element={<AdminDashboard />}
-      />
-          </Routes>
-        </CartProvider>
-      </AuthGate>
+                </Routes>
+              </CartProvider>
+            </AuthGate>
+          )}
+        />
+      </Routes>
     </BrowserRouter>
   );
 }
