@@ -52,10 +52,31 @@
 }
 
 .order-card {
+  perspective: 1200px;
+}
+
+.order-card-inner {
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 0.6s ease;
+}
+
+.order-card.is-flipped .order-card-inner {
+  transform: rotateY(180deg);
+}
+
+.order-card-face {
+  grid-area: 1 / 1;
   padding: 22px;
   border: 1px solid #e6e9f3;
   border-radius: 14px;
   background: white;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.order-card-back {
+  transform: rotateY(180deg);
 }
 
 .order-card-header {
@@ -169,6 +190,67 @@
   color: #b91c1c;
 }
 
+.order-card-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0;
+  color: #727991;
+  font-size: 13px;
+}
+
+.order-flip-btn {
+  padding: 9px 13px;
+  border: 1px solid #173f35;
+  border-radius: 8px;
+  background: #173f35;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.order-flip-btn:hover {
+  background: #245b4c;
+}
+
+.order-cancel-btn {
+  margin-left: 10px;
+  padding: 9px 13px;
+  border: 1px solid #b91c1c;
+  border-radius: 8px;
+  background: white;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.order-cancel-btn:hover {
+  background: #fef2f2;
+}
+
+.order-cancel-btn:disabled {
+  opacity: .65;
+  cursor: wait;
+}
+
+.order-cancel-error {
+  color: #b91c1c;
+  font-size: 12px;
+}
+
+.order-sync-warning {
+  margin: 0;
+  padding: 12px 15px;
+  border: 1px solid #f1d49a;
+  border-radius: 9px;
+  background: #fffbeb;
+  color: #8a5d00;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
 .invoice-actions {
   display: flex;
   align-items: center;
@@ -270,12 +352,22 @@
   }
 
   .order-card {
+    padding: 0;
+  }
+
+  .order-card-face {
     padding: 17px;
   }
 
   .order-status {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .order-card-inner {
+      transition: none;
+    }
   }
 
   .order-status-track {

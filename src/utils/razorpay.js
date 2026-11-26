@@ -1,6 +1,29 @@
+import { httpsCallable } from "firebase/functions";
+import { functions } from "../firebase";
+
 const RAZORPAY_SCRIPT_URL = "https://checkout.razorpay.com/v1/checkout.js";
+const PAYMENT_SESSION_TIMEOUT_MS = 30000;
 
 let scriptPromise;
+
+function withTimeout(promise, milliseconds, message) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(
+      () => reject(new Error(message)),
+      milliseconds,
+    );
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
+}
 
 function loadRazorpayScript() {
   if (window.Razorpay) return Promise.resolve(true);
@@ -17,20 +40,46 @@ function loadRazorpayScript() {
   return scriptPromise;
 }
 
-export async function openRazorpayCheckout({ amount, customer, onSuccess, onDismiss }) {
-  const key = import.meta.env.VITE_RAZORPAY_KEY_ID;
-  if (!key || !key.startsWith("rzp_test_")) {
-    throw new Error("Razorpay test mode is not configured. Add VITE_RAZORPAY_KEY_ID to your .env file.");
+export async function createRazorpayOrder({ amount, orderReference }) {
+  const createOrder = httpsCallable(functions, "createRazorpayOrder");
+  const response = await createOrder({ amount, orderReference });
+  const paymentOrder = response.data;
+  if (
+    !paymentOrder?.id ||
+    !paymentOrder.keyId ||
+    paymentOrder.currency !== "INR" ||
+    !Number.isSafeInteger(paymentOrder.amount)
+  ) {
+    throw new Error("The secure payment order response was invalid.");
   }
+  return paymentOrder;
+}
 
-  await loadRazorpayScript();
+export async function openRazorpayCheckout({
+  amount,
+  orderReference,
+  customer,
+  onSuccess,
+  onDismiss,
+}) {
+  const paymentOrder = await withTimeout(
+    createRazorpayOrder({ amount, orderReference }),
+    PAYMENT_SESSION_TIMEOUT_MS,
+    "Payment session initialization timed out. Please try again.",
+  );
+  await withTimeout(
+    loadRazorpayScript(),
+    PAYMENT_SESSION_TIMEOUT_MS,
+    "Payment checkout timed out while loading. Please try again.",
+  );
   return new Promise((resolve, reject) => {
     const checkout = new window.Razorpay({
-      key,
-      amount: Math.round(Number(amount) * 100),
-      currency: "INR",
+      key: paymentOrder.keyId,
+      order_id: paymentOrder.id,
+      amount: paymentOrder.amount,
+      currency: paymentOrder.currency,
       name: "Mayoor Store",
-      description: "Test payment",
+      description: `Order ${paymentOrder.receipt}`,
       prefill: {
         name: customer?.name || "",
         email: customer?.email || "",

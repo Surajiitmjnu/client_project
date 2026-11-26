@@ -1,0 +1,22 @@
+.notifications-page { min-height: 80vh; padding: 38px 5%; background: #f7f8fc; color: #101633; }
+.notifications-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; max-width: 900px; margin: 0 auto 25px; }
+.notifications-eyebrow { margin: 0 0 6px; color: #6d28ff; font-size: 12px; font-weight: 800; letter-spacing: 1.2px; }
+.notifications-heading h1 { margin: 0 0 7px; font-size: 32px; }
+.notifications-heading p:last-child { color: #727991; font-size: 14px; }
+.notifications-shop-link { padding: 11px 16px; border-radius: 8px; background: #173f35; color: white; font-size: 14px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.notifications-list { display: grid; gap: 14px; max-width: 900px; margin: 0 auto; }
+.customer-notification, .notifications-empty { padding: 21px; border: 1px solid #e6e9f3; border-radius: 14px; background: white; }
+.customer-notification.unread { border-left: 4px solid #6d28ff; }
+.customer-notification-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.customer-notification h2 { margin: 0; font-size: 17px; }
+.customer-notification > p { margin: 12px 0 18px; color: #4b536b; font-size: 14px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.notification-unread-badge { padding: 4px 8px; border-radius: 99px; background: #eee8ff; color: #6435ed; font-size: 11px; font-weight: 700; }
+.customer-notification-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: #727991; font-size: 12px; }
+.customer-notification-footer button { padding: 7px 10px; border: 1px solid #ded7f4; border-radius: 7px; background: white; color: #6435ed; font: inherit; font-weight: 700; cursor: pointer; }
+.customer-notification-footer button:disabled { opacity: .6; cursor: wait; }
+.notifications-empty { max-width: 900px; margin: 0 auto; padding: 55px 20px; text-align: center; }
+.notifications-empty > span { font-size: 40px; }
+.notifications-empty h2 { margin: 12px 0 6px; font-size: 21px; }
+.notifications-empty p { margin: 0; color: #727991; font-size: 14px; }
+.notifications-error { max-width: 900px; margin: 0 auto 15px; color: #d83d4a; font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 620px) { .notifications-page { padding: 25px 15px; } .notifications-heading { align-items: start; flex-direction: column; } .notifications-heading h1 { font-size: 27px; } .customer-notification { padding: 17px; } }

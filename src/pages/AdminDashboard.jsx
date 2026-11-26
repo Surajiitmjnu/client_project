@@ -4,12 +4,14 @@ import {
   Database, Tag, Star, ChartNoAxesColumnIncreasing, Settings, LogOut,
   Search, Bell, ChevronDown, ShoppingCart, IndianRupee, Box, CalendarDays,
   ChartColumnIncreasing, PieChart, Trophy, Eye, UserCheck, Plus, Trash2, Save,
-  Upload, Download, FileSpreadsheet
+  Upload, Download, FileSpreadsheet, Send
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, PieChart as RePieChart, Pie, Cell
 } from "recharts";
+import { getIdTokenResult, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { auth } from "../firebase";
 import "./AdminDashboard.css";
 import { getPricingSettings, savePricingSettings } from "../utils/pricing";
 import {
@@ -21,12 +23,15 @@ import {
 } from "../utils/customerStore";
 import {
   importProducts,
-  parseProductCsv,
+  parseProductCsvWithErrors,
   productsToCsv,
+  rejectedRowsToCsv,
+  saveProductVariant,
   subscribeToProducts,
 } from "../utils/productStore";
 import { subscribeToOrders, updateOrderStatus } from "../utils/orderStore";
 import { removeCoupon, saveCoupon, subscribeToCoupons } from "../utils/couponStore";
+import { sendCustomerNotification } from "../utils/notificationStore";
 
 const navItems = [
   [LayoutDashboard, "Dashboard"],
@@ -34,6 +39,7 @@ const navItems = [
   [Grid2X2, "Categories"],
   [ClipboardList, "Orders"],
   [Users, "Customers"],
+  [Bell, "Notifications"],
   [Building2, "B2B Buyers"],
   [Database, "Inventory"],
   [Tag, "Coupons & Offers"],
@@ -42,7 +48,13 @@ const navItems = [
   [Settings, "Settings"]
 ];
 
-const ADMIN_SESSION_KEY = "mayoor-admin-session";
+const PRODUCT_IMPORT_ROLES = new Set(["STORE_OWNER", "WAREHOUSE_STAFF"]);
+
+function hasProductImportRole(claims) {
+  const roles = Array.isArray(claims.roles) ? claims.roles : [];
+  return PRODUCT_IMPORT_ROLES.has(claims.role)
+    || roles.some((role) => PRODUCT_IMPORT_ROLES.has(role));
+}
 
 function StatCard({ icon: Icon, title, value, growth, tone }) {
   return (
@@ -72,9 +84,24 @@ function AdminDashboardContent({ onLogout }) {
   const [updatingOrderId, setUpdatingOrderId] = useState("");
   const [catalogStatus, setCatalogStatus] = useState("");
   const [catalogError, setCatalogError] = useState("");
+  const [productImportErrorLog, setProductImportErrorLog] = useState("");
+  const [variantForm, setVariantForm] = useState({
+    productId: "",
+    sku: "",
+    size: "",
+    volume: "",
+    shade: "",
+    pack: "",
+    wholesaleOnly: false,
+  });
+  const [isSavingVariant, setIsSavingVariant] = useState(false);
   const [coupons, setCoupons] = useState([]);
   const [couponForm, setCouponForm] = useState({ code: "", discountPercent: 10 });
   const [couponMessage, setCouponMessage] = useState("");
+  const [notificationForm, setNotificationForm] = useState({ recipientId: "", title: "", message: "" });
+  const [notificationStatus, setNotificationStatus] = useState("");
+  const [notificationError, setNotificationError] = useState("");
+  const [isSendingNotification, setIsSendingNotification] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [readNotificationIds, setReadNotificationIds] = useState(() => {
@@ -162,17 +189,58 @@ function AdminDashboardContent({ onLogout }) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    const importStartedAt = Date.now();
     setCatalogStatus("Importing products...");
     setCatalogError("");
+    setProductImportErrorLog("");
     try {
-      const imported = parseProductCsv(await file.text());
-      await importProducts(imported);
-      setCatalogStatus(`${imported.length} product${imported.length === 1 ? "" : "s"} imported. Existing products were updated.`);
+      const { products, rejectedRows } = parseProductCsvWithErrors(await file.text());
+      let importResult = {
+        modifiedCount: 0,
+        createdCount: 0,
+        failedCount: 0,
+        failedRows: [],
+      };
+      if (products.length) {
+        importResult = await importProducts(products);
+      }
+      const writeFailedRows = importResult.failedRows.map((row) => ({
+        rowIndex: "",
+        originalValues: {
+          sku: row.sku,
+          name: row.name,
+          product_id: row.productId,
+        },
+        rejectionCause: row.rejectionCause,
+      }));
+      const failedRows = [...rejectedRows, ...writeFailedRows];
+      setProductImportErrorLog(rejectedRowsToCsv(failedRows));
+      if (rejectedRows.length) {
+        console.error("Product CSV rows rejected:", rejectedRows);
+      }
+
+      const evaluatedCount = products.length + rejectedRows.length;
+      const failedCount = rejectedRows.length + importResult.failedCount;
+      const durationMs = Date.now() - importStartedAt;
+      const status = failedCount ? "completed with errors" : "completed";
+      setCatalogStatus(
+        `CSV import ${status}: ${evaluatedCount} evaluated; ${importResult.modifiedCount} modified; ${importResult.createdCount} created; ${failedCount} failed; ${durationMs} ms.`,
+      );
     } catch (error) {
       console.error("Product CSV import failed:", error);
       setCatalogStatus("");
       setCatalogError(error.message || "Product import failed.");
     }
+  };
+
+  const handleProductImportErrorLogDownload = () => {
+    if (!productImportErrorLog) return;
+    const url = URL.createObjectURL(new Blob([productImportErrorLog], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "mayoor-product-import-errors.csv";
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleProductExport = () => {
@@ -183,6 +251,38 @@ function AdminDashboardContent({ onLogout }) {
     link.download = "mayoor-products.csv";
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleSaveProductVariant = async (event) => {
+    event.preventDefault();
+    setIsSavingVariant(true);
+    setCatalogStatus("Saving product variant...");
+    setCatalogError("");
+    try {
+      await saveProductVariant(variantForm.productId, {
+        sku: variantForm.sku.trim(),
+        size: variantForm.size.trim(),
+        volume: variantForm.volume.trim(),
+        shade: variantForm.shade.trim(),
+        pack: Number(variantForm.pack),
+        wholesaleOnly: variantForm.wholesaleOnly,
+      });
+      setCatalogStatus("Product variant saved. Store options will refresh automatically.");
+      setVariantForm((current) => ({
+        ...current,
+        sku: "",
+        size: "",
+        volume: "",
+        shade: "",
+        pack: "",
+      }));
+    } catch (error) {
+      console.error("Product variant save failed:", error);
+      setCatalogStatus("");
+      setCatalogError(error.message || "Product variant could not be saved.");
+    } finally {
+      setIsSavingVariant(false);
+    }
   };
 
   const handleOrderStatusChange = async (orderId, status) => {
@@ -230,6 +330,25 @@ function AdminDashboardContent({ onLogout }) {
     setCoupons((current) => [coupon, ...current.filter((item) => item.code !== coupon.code)]);
     setCouponForm({ code: "", discountPercent: 10 });
     setCouponMessage(coupon.synced ? `${coupon.code} saved to Firestore.` : `${coupon.code} saved locally; Firestore could not be reached.`);
+  };
+
+  const handleSendCustomerNotification = async (event) => {
+    event.preventDefault();
+    setNotificationStatus("");
+    setNotificationError("");
+    setIsSendingNotification(true);
+    try {
+      await sendCustomerNotification(notificationForm);
+      setNotificationStatus("Notification sent successfully.");
+      setNotificationForm((current) => ({ ...current, title: "", message: "" }));
+    } catch (error) {
+      console.error("Unable to send customer notification:", error);
+      setNotificationError(error.code
+        ? `${error.code}: ${error.message}`
+        : error.message || "Notification could not be sent.");
+    } finally {
+      setIsSendingNotification(false);
+    }
   };
 
   const updateTier = (index, field, value) => {
@@ -413,17 +532,148 @@ function AdminDashboardContent({ onLogout }) {
             <h3><FileSpreadsheet size={24} /> Product Catalog</h3>
             <span className="ms-customer-count">{catalogProducts.length} products</span>
           </div>
-          <p className="ms-panel-description">Import CSV inventory into Firestore. Existing products are matched by ID or name and their inventory is updated.</p>
+          <p className="ms-panel-description">Import CSV inventory into Firestore in batches of 500. Existing products are matched by ID, SKU, or name; the execution summary reports created, modified, and failed rows.</p>
           <div className="ms-catalog-actions">
             <label className="ms-catalog-button">
               <Upload size={16} /> Import CSV
               <input type="file" accept=".csv,text/csv" onChange={handleProductImport} />
             </label>
             <button className="ms-catalog-button" type="button" onClick={handleProductExport}><Download size={16} /> Export CSV</button>
+            {productImportErrorLog && (
+              <button className="ms-catalog-button" type="button" onClick={handleProductImportErrorLogDownload}>
+                <Download size={16} /> Download error log
+              </button>
+            )}
           </div>
-          <p className="ms-csv-format">Columns: <code>id,name,category,price,inventory,moq,image</code> · Required: name, price, inventory</p>
+          <p className="ms-csv-format">Inventory headers: <code>sku_code,base_price,stock_quantity,moq_tier</code> · Legacy headers are also accepted: name, price, inventory.</p>
+          <form className="ms-variant-form" onSubmit={handleSaveProductVariant}>
+            <h4>Add or update a product variant</h4>
+            <label>
+              Product
+              <select
+                required
+                value={variantForm.productId}
+                onChange={(event) => setVariantForm((current) => ({ ...current, productId: event.target.value }))}
+              >
+                <option value="">Select a product</option>
+                {catalogProducts.map((product) => (
+                  <option value={product.id} key={product.id}>{product.name}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              SKU
+              <input
+                required
+                value={variantForm.sku}
+                onChange={(event) => setVariantForm((current) => ({ ...current, sku: event.target.value }))}
+                placeholder="SKU COS-101"
+              />
+            </label>
+            <label>
+              Size
+              <input
+                required
+                value={variantForm.size}
+                onChange={(event) => setVariantForm((current) => ({ ...current, size: event.target.value }))}
+                placeholder="Medium"
+              />
+            </label>
+            <label>
+              Volume
+              <input
+                required
+                value={variantForm.volume}
+                onChange={(event) => setVariantForm((current) => ({ ...current, volume: event.target.value }))}
+                placeholder="100 ml"
+              />
+            </label>
+            <label>
+              Shade
+              <input
+                required
+                value={variantForm.shade}
+                onChange={(event) => setVariantForm((current) => ({ ...current, shade: event.target.value }))}
+                placeholder="Rose"
+              />
+            </label>
+            <label>
+              Pack
+              <input
+                required
+                type="number"
+                min="1"
+                step="1"
+                value={variantForm.pack}
+                onChange={(event) => setVariantForm((current) => ({ ...current, pack: event.target.value }))}
+                placeholder="2"
+              />
+            </label>
+            <label className="ms-variant-checkbox">
+              <input
+                type="checkbox"
+                checked={variantForm.wholesaleOnly}
+                onChange={(event) => setVariantForm((current) => ({ ...current, wholesaleOnly: event.target.checked }))}
+              />
+              Wholesale-only SKU
+            </label>
+            <button className="ms-save-button" type="submit" disabled={isSavingVariant || !catalogProducts.length}>
+              <Save size={16} /> {isSavingVariant ? "Saving variant..." : "Save variant"}
+            </button>
+          </form>
           {catalogStatus && <p className="ms-catalog-success" role="status">{catalogStatus}</p>}
           {catalogError && <p className="ms-catalog-error" role="alert">{catalogError}</p>}
+        </section>
+
+        <section className="ms-panel ms-notification-panel" id="notifications">
+          <div className="ms-panel-heading">
+            <h3><Bell size={24} /> Send customer notification</h3>
+          </div>
+          <p className="ms-panel-description">Send a private message to one registered customer. The customer will see it in their Notifications page.</p>
+          <form className="ms-notification-form" onSubmit={handleSendCustomerNotification}>
+            <label>
+              Customer
+              <select
+                required
+                value={notificationForm.recipientId}
+                onChange={(event) => setNotificationForm((current) => ({ ...current, recipientId: event.target.value }))}
+              >
+                <option value="">Select a customer</option>
+                {customers.map((customer) => (
+                  <option value={customer.uid} key={customer.uid}>
+                    {customer.name || "Unnamed customer"}{customer.email ? ` (${customer.email})` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Title
+              <input
+                required
+                maxLength="100"
+                value={notificationForm.title}
+                onChange={(event) => setNotificationForm((current) => ({ ...current, title: event.target.value }))}
+                placeholder="Notification title"
+              />
+            </label>
+            <label>
+              Message
+              <textarea
+                required
+                maxLength="2000"
+                rows="5"
+                value={notificationForm.message}
+                onChange={(event) => setNotificationForm((current) => ({ ...current, message: event.target.value }))}
+                placeholder="Write a message for this customer..."
+              />
+            </label>
+            <button className="ms-save-button" type="submit" disabled={isSendingNotification || !customers.length}>
+              <Send size={16} /> {isSendingNotification ? "Sending..." : "Send notification"}
+            </button>
+          </form>
+          {!customers.length && <p className="ms-catalog-error">No registered customers are available to receive a notification.</p>}
+          {notificationStatus && <p className="ms-catalog-success" role="status">{notificationStatus}</p>}
+          {notificationError && <p className="ms-catalog-error" role="alert">{notificationError}</p>}
         </section>
 
         <section className="ms-management-grid">
@@ -566,7 +816,7 @@ function AdminDashboardContent({ onLogout }) {
                   <td><span className={`ms-type-badge ${orderType.toLowerCase()}`}>{orderType}</span></td>
                   <td>{money(order.total)}</td><td><span className={`ms-status ${orderStatus.toLowerCase()}`}>{orderStatus}</span></td><td>{orderDate}</td>
                   <td><select className="ms-order-status-select" value={orderStatus} disabled={updatingOrderId === order.id} onChange={(event) => handleOrderStatusChange(order.id, event.target.value)} aria-label={`Fulfill order ${String(order.id || "").slice(0, 8)}`}>
-                    {["Pending", "Shipped", "Delivered", "Cancelled"].map((status) => <option key={status} value={status}>{status}</option>)}
+                    {["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"].map((status) => <option key={status} value={status}>{status}</option>)}
                   </select></td>
                 </tr>;
                 }) : <tr><td colSpan="7" className="ms-empty-customers">No orders have been placed yet.</td></tr>}</tbody>
@@ -661,20 +911,29 @@ function AdminDashboardContent({ onLogout }) {
 }
 
 export default function AdminDashboard() {
-  const [authenticated, setAuthenticated] = useState(() => sessionStorage.getItem(ADMIN_SESSION_KEY) === "true");
+  const [authenticated, setAuthenticated] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  const handleLogin = (event) => {
+  const handleLogin = async (event) => {
     event.preventDefault();
-    if (username.trim() === "admin" && password === "admin") {
-      sessionStorage.setItem(ADMIN_SESSION_KEY, "true");
+    setLoginError("");
+    setIsLoggingIn(true);
+    try {
+      const credential = await signInWithEmailAndPassword(auth, username.trim(), password);
+      const token = await getIdTokenResult(credential.user, true);
+      if (!hasProductImportRole(token.claims)) {
+        await signOut(auth);
+        throw new Error("This account is not authorized to access product management.");
+      }
       setAuthenticated(true);
-      setLoginError("");
-      return;
+    } catch (error) {
+      setLoginError(error.message.replace("Firebase: ", ""));
+    } finally {
+      setIsLoggingIn(false);
     }
-    setLoginError("Incorrect username or password.");
   };
 
   if (!authenticated) {
@@ -684,17 +943,16 @@ export default function AdminDashboard() {
           <div className="ms-login-brand"><ShoppingCart size={24} /></div>
           <h1>Admin portal</h1>
           <p>Sign in to manage your Mayoor Store.</p>
-          <label>Username<input autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required /></label>
+          <label>Email<input type="email" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required /></label>
           <label>Password<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
           {loginError && <span className="ms-login-error" role="alert">{loginError}</span>}
-          <button type="submit">Sign in</button>
+          <button type="submit" disabled={isLoggingIn}>{isLoggingIn ? "Signing in..." : "Sign in"}</button>
         </form>
       </main>
     );
   }
 
   return <AdminDashboardContent onLogout={() => {
-    sessionStorage.removeItem(ADMIN_SESSION_KEY);
-    setAuthenticated(false);
+    signOut(auth).then(() => setAuthenticated(false));
   }} />;
 }

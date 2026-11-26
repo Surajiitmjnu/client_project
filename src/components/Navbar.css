@@ -189,6 +189,40 @@
   box-shadow: 0 3px 8px rgba(154, 104, 16, .07);
 }
 
+.notification-nav-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #e4e8e4;
+  border-radius: 50%;
+  background: white;
+  color: #526057;
+  cursor: pointer;
+}
+
+.notification-nav-btn:hover {
+  border-color: #b6d2c0;
+  color: #173f35;
+}
+
+.notification-nav-btn > span {
+  position: absolute;
+  top: -4px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 99px;
+  background: #d83d4a;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .credit-balance svg {
   color: #d49a35;
 }

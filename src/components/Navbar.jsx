@@ -3,8 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
-import { WalletCards } from "lucide-react";
+import { Bell, WalletCards } from "lucide-react";
 import { getCustomerCredit, getCustomerProfile } from "../utils/customerStore";
+import { subscribeToCustomerNotifications } from "../utils/notificationStore";
 import { subscribeToProducts } from "../utils/productStore";
 import "./Navbar.css";
 
@@ -17,6 +18,7 @@ function Navbar() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [creditBalance, setCreditBalance] = useState(() => getCustomerCredit(auth.currentUser?.uid));
   const [profile, setProfile] = useState(() => getCustomerProfile(auth.currentUser?.uid));
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0);
   const profileRef = useRef(null);
   const navigate = useNavigate();
 
@@ -25,11 +27,21 @@ function Navbar() {
       setUser(currentUser);
       setCreditBalance(getCustomerCredit(currentUser?.uid));
       setProfile(getCustomerProfile(currentUser?.uid));
+      setUnreadNotificationCount(0);
       setHasProfileImageError(false);
       setIsProfileOpen(false);
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) return undefined;
+    return subscribeToCustomerNotifications(user.uid, (notifications) => {
+      setUnreadNotificationCount(notifications.filter((notification) => !notification.read).length);
+    }, (error) => {
+      console.error("Unable to load notification count:", error);
+    });
+  }, [user?.uid]);
 
   useEffect(() => {
     let unsubscribe = () => {};
@@ -178,6 +190,18 @@ function Navbar() {
         <div className="nav-actions">
           {user ? (
             <>
+              <button
+                type="button"
+                className="notification-nav-btn"
+                aria-label={`Notifications${unreadNotificationCount ? `, ${unreadNotificationCount} unread` : ""}`}
+                title="Notifications"
+                onClick={() => navigate("/notifications")}
+              >
+                <Bell size={20} />
+                {unreadNotificationCount > 0 && (
+                  <span>{Math.min(unreadNotificationCount, 99)}</span>
+                )}
+              </button>
               <div className="credit-balance" title="Available store credit">
                 <WalletCards size={17} />
                 <span>₹{creditBalance.toLocaleString("en-IN", { maximumFractionDigits: 2 })}</span>

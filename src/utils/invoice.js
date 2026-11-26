@@ -1,6 +1,7 @@
 
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
+import { finalizeOrderInvoice } from "./orderStore";
 
 const STORE_NAME = "MAYOOR STORE";
 const STORE_ADDRESS = "Durgesh Pathak Colony, Siwan, Bihar";
@@ -43,23 +44,27 @@ async function loadStampLogo() {
 }
 
 export async function downloadInvoice(order) {
-  const number = orderNumber(order);
-  const items = Array.isArray(order.items) ? order.items : [];
+  const snapshot = await finalizeOrderInvoice(order);
+  const invoiceOrder = { ...order, ...snapshot };
+  const number = orderNumber(invoiceOrder);
+  const items = Array.isArray(invoiceOrder.items) ? invoiceOrder.items : [];
 
   const customerName =
-    order.customerName || order.customer || "Customer";
+    invoiceOrder.customerName || invoiceOrder.customer || "Customer";
 
-  const invoiceDate = order.createdAt
-    ? new Date(order.createdAt).toLocaleDateString("en-IN")
+  const invoiceDate = invoiceOrder.createdAt
+    ? new Date(invoiceOrder.createdAt).toLocaleDateString("en-IN")
     : new Date().toLocaleDateString("en-IN");
 
   const stampLogo = await loadStampLogo();
 
   const qrData = JSON.stringify({
     orderId: number,
-    status: order.status,
-    total: order.total,
-    date: order.createdAt,
+    status: invoiceOrder.status,
+    total: invoiceOrder.total,
+    date: invoiceOrder.createdAt,
+    creditLedgerId: invoiceOrder.creditLedgerId || null,
+    settlementDeadline: invoiceOrder.settlementDeadline || null,
   });
 
   const qrCode = await QRCode.toDataURL(qrData, {
@@ -76,13 +81,16 @@ export async function downloadInvoice(order) {
   const right = pageWidth - 15;
   const contentWidth = right - left;
 
-  const isDelivered = String(order.status || "").toLowerCase() === "delivered";
+  const isDelivered = String(invoiceOrder.status || "").toLowerCase() === "delivered";
+  const isB2BCredit = invoiceOrder.paymentMethod === "B2B_CREDIT"
+    || invoiceOrder.paymentType === "B2B_CREDIT"
+    || invoiceOrder.isB2BCredit === true;
   const isPaymentComplete = Boolean(
-    order.payment?.paymentId
+    invoiceOrder.payment?.paymentId
     || ["paid", "completed", "success", "succeeded"].includes(
-      String(order.paymentStatus || "").toLowerCase(),
+      String(invoiceOrder.paymentStatus || "").toLowerCase(),
     )
-    || (Number(order.total) === 0 && Number(order.creditApplied) >= 0)
+    || (Number(invoiceOrder.total) === 0 && Number(invoiceOrder.creditApplied) >= 0)
   );
   const isPaid = isDelivered && isPaymentComplete;
 
@@ -129,11 +137,18 @@ export async function downloadInvoice(order) {
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
   pdf.text(
-    `Payment Status: ${isPaid ? "PAID" : "UNPAID"}`,
+    `Payment Status: ${isB2BCredit ? invoiceOrder.creditStatus || "UNSETTLED" : isPaid ? "PAID" : "UNPAID"}${isB2BCredit ? " (B2B CREDIT)" : ""}`,
     left,
     58
   );
   pdf.text(`Order ID: ${number}`, left, 64);
+  if (isB2BCredit) {
+    const settlementDeadline = invoiceOrder.settlementDeadline
+      ? new Date(invoiceOrder.settlementDeadline).toLocaleDateString("en-IN")
+      : "Not set";
+    pdf.text(`Credit Ledger: ${invoiceOrder.creditLedgerId || "Not linked"}`, left, 70);
+    pdf.text(`Settlement Deadline: ${settlementDeadline}`, left, 76);
+  }
 
   // QR code
   pdf.addImage(qrCode, "PNG", right - 27, 46, 27, 27);
@@ -155,10 +170,10 @@ export async function downloadInvoice(order) {
   let customerY = 97;
   const customerDetails = [
     customerName,
-    order.phone ? `Phone: ${order.phone}` : null,
-    order.shopName ? `Shop: ${order.shopName}` : null,
-    order.shopAddress || null,
-    order.gstin ? `GSTIN: ${order.gstin}` : null,
+    invoiceOrder.phone ? `Phone: ${invoiceOrder.phone}` : null,
+    invoiceOrder.shopName ? `Shop: ${invoiceOrder.shopName}` : null,
+    invoiceOrder.shopAddress || null,
+    invoiceOrder.gstin ? `GSTIN: ${invoiceOrder.gstin}` : null,
   ].filter(Boolean);
 
   customerDetails.forEach((detail) => {
@@ -264,7 +279,7 @@ export async function downloadInvoice(order) {
     0
   );
 
-  const total = Number(order.total) || subtotal;
+  const total = Number(invoiceOrder.total) || subtotal;
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
@@ -276,9 +291,9 @@ export async function downloadInvoice(order) {
 
   y += 7;
 
-  if (Number(order.shippingCharges) > 0) {
+  if (Number(invoiceOrder.shippingCharges) > 0) {
     pdf.text("Shipping Charges", 135, y);
-    pdf.text(moneyValue(order.shippingCharges), right, y, {
+    pdf.text(moneyValue(invoiceOrder.shippingCharges), right, y, {
       align: "right",
     });
     y += 7;

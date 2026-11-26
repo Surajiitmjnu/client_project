@@ -1,24 +1,61 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import "./Home.css";
-import { subscribeToProducts } from "../utils/productStore";
+import { SAMPLE_PRODUCTS } from "../utils/sampleProducts";
+import { getProductImageOrigin } from "../utils/productImages";
+import {
+  initializeSampleProducts,
+  subscribeToProducts,
+} from "../utils/productStore";
 
 function Home() {
   const [products, setProducts] = useState([]);
+  const [catalogMessage, setCatalogMessage] = useState("");
+  const initializationStartedRef = useRef(false);
 
   useEffect(() => {
+    let active = true;
     let unsubscribe = () => {};
+    const showSampleProducts = (error) => {
+      if (!active) return;
+      console.error("Showing the bundled sample catalog because Firestore could not load products:", error);
+      setProducts(SAMPLE_PRODUCTS);
+      setCatalogMessage(`Showing sample products. Firestore could not sync the catalog: ${error.message || "unknown error"}`);
+    };
     try {
       unsubscribe = subscribeToProducts((firestoreProducts) => {
-        setProducts(firestoreProducts.map((product) => ({
+        const normalizedProducts = firestoreProducts.map((product) => ({
           ...product,
           images: product.images || [product.image].filter(Boolean),
-        })));
-      }, (error) => console.error("Unable to load home page products:", error));
+        }));
+        if (normalizedProducts.length) {
+          setProducts(normalizedProducts);
+          setCatalogMessage("");
+          return;
+        }
+        if (initializationStartedRef.current) return;
+        initializationStartedRef.current = true;
+        setCatalogMessage("Adding sample products to the store...");
+        void initializeSampleProducts(SAMPLE_PRODUCTS)
+          .then((initializedProducts) => {
+            if (!active) return;
+            setProducts(initializedProducts.map((product) => ({
+              ...product,
+              images: product.images || [product.image].filter(Boolean),
+            })));
+            setCatalogMessage("");
+          })
+          .catch(showSampleProducts);
+      }, (error) => {
+        showSampleProducts(error);
+      });
     } catch (error) {
-      console.error("Unable to connect to home page products:", error);
+      Promise.resolve().then(() => showSampleProducts(error));
     }
-    return () => unsubscribe();
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, []);
 
   const categories = useMemo(() => {
@@ -30,7 +67,7 @@ function Home() {
     ];
     const grouped = products.reduce((result, product) => {
       const name = product.category || "Uncategorized";
-      if (!result[name]) result[name] = { name, count: 0 };
+      if (!result[name]) result[name] = { name, count: 0, product };
       result[name].count += 1;
       return result;
     }, {});
@@ -41,9 +78,12 @@ function Home() {
   }, [products]);
 
   const heroProduct = products[0];
+  const heroImage = heroProduct?.images?.[0] || heroProduct?.image;
+  const heroImageOrigin = getProductImageOrigin(heroImage);
 
   return (
     <div className="home-page">
+      {heroImageOrigin && <link rel="preconnect" href={heroImageOrigin} />}
       {/* Hero Section */}
       <section className="hero">
         <div className="hero-content">
@@ -86,8 +126,11 @@ function Home() {
         <div className="hero-visual">
           {heroProduct ? (
             <img
-              src={heroProduct.images?.[0] || heroProduct.image}
+              src={heroImage}
               alt={heroProduct.name}
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
             />
           ) : (
             <div className="hero-product-empty">Products from our store will appear here.</div>
@@ -101,6 +144,10 @@ function Home() {
           </div>
         </div>
       </section>
+
+      {catalogMessage && (
+        <p className="catalog-sync-message" role="status">{catalogMessage}</p>
+      )}
 
       {/* Categories */}
       <section className="home-section">
@@ -122,15 +169,30 @@ function Home() {
               className="category-card"
               key={category.name}
             >
-              <span className="category-icon">{category.icon}</span>
+              <span className="category-image">
+                {category.product.images?.[0] || category.product.image ? (
+                  <img
+                    src={category.product.images?.[0] || category.product.image}
+                    alt={category.product.name}
+                    loading="lazy"
+                    fetchPriority="low"
+                  />
+                ) : (
+                  <span className="category-icon">{category.icon}</span>
+                )}
+              </span>
               <h3>{category.name}</h3>
-              <small>{category.count} product{category.count === 1 ? "" : "s"}</small>
+              <small className="category-featured-product">{category.product.name}</small>
+              <small>
+                ₹{Number(category.product.price).toLocaleString("en-IN")} / unit
+                {" · "}{category.count} product{category.count === 1 ? "" : "s"}
+              </small>
               <span className="category-arrow">↗</span>
             </a>
           ))}
         </div>
         {!categories.length && (
-          <p className="empty-store-message">Categories from the store catalog will appear here.</p>
+          <p className="empty-store-message">{catalogMessage || "Categories from the store catalog will appear here."}</p>
         )}
       </section>
 
@@ -155,7 +217,12 @@ function Home() {
                 href={`/products/${product.id}`}
                 className="product-image"
               >
-                <img src={product.images?.[0] || product.image} alt={product.name} />
+                <img
+                  src={product.images?.[0] || product.image}
+                  alt={product.name}
+                  loading="lazy"
+                  fetchPriority="low"
+                />
                 <span className="stock-badge">Explore</span>
               </a>
 
@@ -171,7 +238,10 @@ function Home() {
                 <h3>{product.name}</h3>
 
                 <div className="product-bottom">
-                  <strong>₹{product.price}</strong>
+                  <strong>
+                    ₹{Number(product.price).toLocaleString("en-IN")}
+                    <small> / unit</small>
+                  </strong>
                   <a
                     href={`/products/${product.id}`}
                     className="add-btn"
@@ -185,7 +255,7 @@ function Home() {
           ))}
         </div>
         {!products.length && (
-          <p className="empty-store-message">Products added to the store will appear here.</p>
+          <p className="empty-store-message">{catalogMessage || "Products added to the store will appear here."}</p>
         )}
       </section>
 
@@ -212,8 +282,10 @@ function Home() {
   <div className="skin-care-image">
     {heroProduct && (
       <img
-        src={heroProduct.images?.[0] || heroProduct.image}
+        src={heroImage}
         alt={heroProduct.name}
+        loading="lazy"
+        fetchPriority="low"
       />
     )}
   </div>

@@ -1,20 +1,24 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 
 import AuthGate from "../AuthGate";
-import Navbar from "./components/Navbar";
-import Products from "./pages/Products";
-import Home from "./pages/Home";
-import ProductView from "./pages/ProductView";
-import AdminDashboard from "./pages/AdminDashboard";
-import Cart from "./Cart.jsx";
-import Orders from "./pages/Orders";
-import Profile from "./pages/Profile";
-
-import { CartProvider } from "./context/CartContext.jsx";
+const Navbar = lazy(() => import("./components/Navbar"));
+const Products = lazy(() => import("./pages/Products"));
+const Home = lazy(() => import("./pages/Home"));
+const ProductView = lazy(() => import("./pages/ProductView"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const Cart = lazy(() => import("./Cart.jsx"));
+const Orders = lazy(() => import("./pages/Orders"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Notifications = lazy(() => import("./pages/Notifications"));
+const CartProvider = lazy(() => import("./context/CartContext.jsx").then(
+  ({ CartProvider: Provider }) => ({ default: Provider }),
+));
 
 function App() {
   return (
     <BrowserRouter>
+      <Suspense fallback={<div role="status">Loading store...</div>}>
       <Routes>
         <Route path="/admin" element={<AdminDashboard />} />
         <Route
@@ -51,6 +55,15 @@ function App() {
               <Profile />
             </>
           }
+        />
+        <Route
+          path="/notifications"
+          element={(
+            <>
+              <Navbar />
+              <Notifications />
+            </>
+          )}
         />
 
 
@@ -94,6 +107,7 @@ function App() {
           )}
         />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

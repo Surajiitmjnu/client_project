@@ -4,7 +4,18 @@ import { auth } from "./firebase";
 import { useCart } from "./context/CartContext";
 import { setCustomerCredit } from "./utils/customerStore";
 import { getCustomerProfile } from "./utils/customerStore";
-import { createLocalOrder, createOrder, generateOrderId } from "./utils/orderStore";
+import { approveB2BCreditOrder, releaseB2BCreditOrder } from "./utils/b2bCredit";
+import {
+  commitProductInventoryReservation,
+  releaseProductInventoryReservation,
+  reserveProductInventory,
+} from "./utils/productInventory";
+import {
+  createLocalOrder,
+  createOrder,
+  generateOrderId,
+  queueOrderConfirmationEmail,
+} from "./utils/orderStore";
 import { openRazorpayCheckout } from "./utils/razorpay";
 import "./Cart.css";
 
@@ -31,6 +42,7 @@ export default function Cart() {
   const [orderConfirmation, setOrderConfirmation] = useState(null);
   const [checkoutError, setCheckoutError] = useState("");
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [onlinePaymentRequired, setOnlinePaymentRequired] = useState(false);
   const {
     cart, pricedItems, increaseQuantity, decreaseQuantity, setQuantity, removeFromCart,
     clearCart, subtotal, discountAmount, isLoyalCustomer,
@@ -39,6 +51,20 @@ export default function Cart() {
   } = useCart();
   const [couponError, setCouponError] = useState("");
   const [profile, setProfile] = useState(() => getCustomerProfile(auth.currentUser?.uid));
+  const [useB2BCredit, setUseB2BCredit] = useState(false);
+  const isB2BBuyer = Boolean(
+    profile?.isB2B === true ||
+    profile?.customerType === "B2B" ||
+    profile?.accountType === "B2B" ||
+    profile?.type === "B2B" ||
+    profile?.shopName ||
+    profile?.gstin,
+  );
+  const availableCredit = Math.max(
+    0,
+    Number(profile?.creditLimit || 0) -
+      Number(profile?.creditOutstanding ?? profile?.outstandingBalance ?? 0),
+  );
 
   useEffect(() => {
     const refreshProfile = (event) => {
@@ -58,8 +84,31 @@ export default function Cart() {
 
   const handleCheckout = async () => {
     if (!cart.length || payableAmount < 0 || isCheckingOut) return;
+    const insufficientStockItems = cart.filter((item) => {
+      const availableStock = item.selectedVariant?.inventory ?? item.inventory;
+      return availableStock !== undefined &&
+        availableStock !== null &&
+        availableStock !== "" &&
+        Number.isFinite(Number(availableStock)) &&
+        Number(availableStock) < item.quantity;
+    });
+    if (insufficientStockItems.length) {
+      setCheckoutError(`Insufficient stock for: ${insufficientStockItems.map((item) => {
+        const availableStock = item.selectedVariant?.inventory ?? item.inventory;
+        return `${item.name} (${availableStock} available)`;
+      }).join(", ")}. Please adjust the quantity.`);
+      return;
+    }
+    if (useB2BCredit && profile?.verificationStatus !== "Verified") {
+      setCheckoutError("B2B credit checkout is unavailable until the Store Owner approves your profile.");
+      return;
+    }
     if (profile?.verificationStatus !== "Verified") {
       setCheckoutError("Your profile must be verified before placing an order.");
+      return;
+    }
+    if (useB2BCredit && !isB2BBuyer) {
+      setCheckoutError("B2B credit is available only to verified business buyers.");
       return;
     }
     setCheckoutError("");
@@ -76,7 +125,7 @@ export default function Cart() {
       creditApplied,
       paymentStatus: payableAmount === 0 ? "Paid" : "Pending",
       status: "Pending",
-      type: "Retail",
+      type: isB2BBuyer ? "B2B" : "Retail",
       customer: auth.currentUser?.displayName || auth.currentUser?.email || "Guest customer",
       customerEmail: auth.currentUser?.email || "",
       customerName: profile.fullName || auth.currentUser?.displayName || auth.currentUser?.email || "Customer",
@@ -86,24 +135,95 @@ export default function Cart() {
       gstin: profile.gstin,
       customerId: auth.currentUser?.uid || null,
     };
+    let creditApproval = null;
+    let inventoryReservation = null;
+    let inventoryReservationAttempted = false;
+    let paymentSucceeded = false;
+    let orderSaved = false;
+    const saveOrderAndQueueEmail = async () => {
+      const savedOrder = useB2BCredit
+        ? await createOrder(order)
+        : await withTimeout(createOrder(order), CHECKOUT_TIMEOUT_MS);
+      order.id = savedOrder.id;
+      orderSaved = true;
+      try {
+        await withTimeout(queueOrderConfirmationEmail(order), CHECKOUT_TIMEOUT_MS);
+        order.confirmationEmailStatus = "queued";
+      } catch (emailError) {
+        console.error("Order was saved, but its confirmation email could not be queued:", emailError);
+        order.confirmationEmailStatus = "failed";
+        order.confirmationEmailError = emailError.message || "Email could not be queued.";
+      }
+    };
+    const finalizeInventoryReservation = async () => {
+      if (!inventoryReservation) return;
+      try {
+        await commitProductInventoryReservation({ orderReference: order.orderId });
+        order.inventoryReservationStatus = "committed";
+      } catch (error) {
+        console.error("Order succeeded, but its inventory reservation could not be finalized:", error);
+        order.inventoryReservationStatus = "pending";
+      }
+    };
     try {
-      if (payableAmount > 0) {
+      if (!useB2BCredit) {
+        inventoryReservationAttempted = true;
+        inventoryReservation = await reserveProductInventory({
+          orderReference: order.orderId,
+          items: order.items,
+        });
+        order.inventoryReservationId = inventoryReservation.reservationId;
+        order.inventoryReservations = inventoryReservation.inventoryReservations;
+      }
+      if (useB2BCredit) {
+        creditApproval = await withTimeout(approveB2BCreditOrder({
+          amount: payableAmount,
+          orderReference: order.orderId,
+          items: order.items,
+        }), CHECKOUT_TIMEOUT_MS);
+        if (
+          !creditApproval.approvalToken ||
+          !creditApproval.creditLedgerId ||
+          !creditApproval.settlementDeadline
+        ) {
+          throw new Error("B2B credit approval response is missing its ledger or settlement details.");
+        }
+        order.creditApprovalToken = creditApproval.approvalToken;
+        order.creditAvailableAtApproval = creditApproval.availableCredit;
+        order.inventoryReservations = creditApproval.inventoryReservations;
+        order.paymentType = "B2B_CREDIT";
+        order.paymentMethod = "B2B_CREDIT";
+        order.isB2BCredit = true;
+        order.creditStatus = "UNSETTLED";
+        order.creditLedgerId = creditApproval.creditLedgerId;
+        order.creditLedgerPath = `CreditLedger/${creditApproval.creditLedgerId}`;
+        order.settlementDeadline = creditApproval.settlementDeadline;
+        order.payment = {
+          provider: "b2b_credit",
+          approvalToken: creditApproval.approvalToken,
+        };
+        order.paymentStatus = "UNSETTLED";
+        await saveOrderAndQueueEmail();
+      } else if (payableAmount > 0) {
         await openRazorpayCheckout({
           amount: payableAmount,
+          orderReference: order.orderId,
           customer: {
             name: auth.currentUser?.displayName,
             email: auth.currentUser?.email,
           },
           onSuccess: async (payment) => {
+            paymentSucceeded = true;
             order.payment = {
               provider: "razorpay",
               mode: "test",
+              razorpayOrderId: payment.razorpay_order_id,
               paymentId: payment.razorpay_payment_id,
             };
             order.paymentStatus = "Paid";
+            await finalizeInventoryReservation();
             try {
-              const savedOrder = await withTimeout(createOrder(order), CHECKOUT_TIMEOUT_MS);
-              order.id = savedOrder.id;
+              await saveOrderAndQueueEmail();
             } catch (error) {
               console.error("Unable to save paid order to Firestore:", error);
               const localOrder = createLocalOrder(order);
@@ -113,12 +233,39 @@ export default function Cart() {
           },
         });
       } else {
-        const savedOrder = await withTimeout(createOrder(order), CHECKOUT_TIMEOUT_MS);
-        order.id = savedOrder.id;
+        await saveOrderAndQueueEmail();
+        await finalizeInventoryReservation();
       }
     } catch (error) {
       console.error("Checkout failed:", error);
-      setCheckoutError(error.message || "Payment failed. Please try again.");
+      let errorMessage = error.message || "Payment failed. Please try again.";
+      const insufficientCredit = error.details?.errorCode === "ERR-CRD-002"
+        || errorMessage.includes("ERR-CRD-002");
+      if (insufficientCredit) {
+        setUseB2BCredit(false);
+        setOnlinePaymentRequired(true);
+        errorMessage = "InsufficientCreditException (ERR-CRD-002). B2B credit is unavailable for this amount. Continue with online payment.";
+      }
+      if (inventoryReservationAttempted && !paymentSucceeded && !orderSaved) {
+        try {
+          await releaseProductInventoryReservation({ orderReference: order.orderId });
+        } catch (releaseError) {
+          console.error("Unable to release reserved product inventory:", releaseError);
+          errorMessage += " Reserved stock could not be released; contact store support.";
+        }
+      }
+      if (creditApproval?.approvalToken) {
+        try {
+          await releaseB2BCreditOrder({
+            orderReference: order.orderId,
+            approvalToken: creditApproval.approvalToken,
+          });
+        } catch (releaseError) {
+          console.error("Unable to release the B2B credit reservation:", releaseError);
+          errorMessage += " The reserved credit could not be released; contact store support.";
+        }
+      }
+      setCheckoutError(errorMessage);
       setIsCheckingOut(false);
       return;
     }
@@ -129,6 +276,8 @@ export default function Cart() {
 
     clearCart();
     setUseCredit(false);
+    setUseB2BCredit(false);
+    setOnlinePaymentRequired(false);
     setOrderConfirmation(order);
     setIsCheckingOut(false);
   };
@@ -139,8 +288,47 @@ export default function Cart() {
         <div className="empty-icon">✅</div>
         <h1>Order placed successfully</h1>
         <p>Order {orderConfirmation.orderId} has been placed.</p>
+        {orderConfirmation.creditApprovalToken && (
+          <>
+            <p className="checkout-sync-note" role="status">
+              B2B credit approved. Approval token: {orderConfirmation.creditApprovalToken}
+              {Number.isFinite(Number(orderConfirmation.creditAvailableAtApproval))
+                ? ` · Available before approval: ${money(orderConfirmation.creditAvailableAtApproval)}`
+                : ""}
+            </p>
+            <p className="checkout-sync-note" role="status">
+              Credit status: UNSETTLED · Ledger entry: {orderConfirmation.creditLedgerId}
+              {orderConfirmation.settlementDeadline
+                ? ` · Settlement deadline: ${new Date(orderConfirmation.settlementDeadline).toLocaleDateString("en-IN")}`
+                : ""}
+            </p>
+            {orderConfirmation.inventoryReservations?.length > 0 && (
+              <p className="checkout-sync-note" role="status">
+                Inventory reserved. Remaining stock: {orderConfirmation.inventoryReservations
+                  .map((item) => `${item.name}: ${item.remainingStock}`)
+                  .join(", ")}.
+              </p>
+            )}
+          </>
+        )}
         {orderConfirmation.syncStatus === "pending" && (
           <p className="checkout-sync-note">Your order is saved on this device and will sync when the store connection is restored.</p>
+        )}
+        {orderConfirmation.inventoryReservationStatus === "pending" && (
+          <p className="checkout-sync-note" role="status">
+            Your order was saved, but its inventory reservation needs confirmation. Please contact store support.
+          </p>
+        )}
+        {orderConfirmation.confirmationEmailStatus === "queued" && (
+          <p className="checkout-sync-note">An order confirmation email has been queued for {orderConfirmation.customerEmail}. Please check your inbox.</p>
+        )}
+        {orderConfirmation.confirmationEmailStatus === "failed" && (
+          <p className="checkout-sync-note" role="status">
+            Your order was placed, but the confirmation email could not be queued: {orderConfirmation.confirmationEmailError}
+          </p>
+        )}
+        {orderConfirmation.confirmationEmailStatus === "not_queued" && (
+          <p className="checkout-sync-note">The confirmation email could not be sent while the store connection was unavailable.</p>
         )}
         <p className="checkout-success-total">Amount payable: {money(orderConfirmation.total)}</p>
         <Link className="continue-btn" to="/products">Continue Shopping</Link>
@@ -158,7 +346,13 @@ export default function Cart() {
         <div className="cart-header"><h1>Your Cart ({cart.length})</h1><button className="clear-cart" onClick={clearCart}>Clear cart</button></div>
         {pricedItems.map((item) => (
           <article className="cart-product" key={item.id}>
-            <img className="cart-image" src={item.images?.[0] || item.image} alt={item.name} />
+            <img
+              className="cart-image"
+              src={item.images?.[0] || item.image}
+              alt={item.name}
+              loading="lazy"
+              fetchPriority="low"
+            />
             <div className="cart-product-details">
               <h3>{item.name}</h3><p className="cart-category">{item.category}</p>
               <p className="cart-unit-price">{money(item.pricing.finalAmount / item.quantity)} each</p>
@@ -206,10 +400,35 @@ export default function Cart() {
         {creditBalance > 0 && (
           <label className="credit-option">
             <span><strong>Store credit</strong><small>Available: {money(creditBalance)}</small></span>
-            <input type="checkbox" checked={useCredit} onChange={(event) => setUseCredit(event.target.checked)} />
+            <input type="checkbox" checked={useCredit} onChange={(event) => {
+              setUseCredit(event.target.checked);
+              if (event.target.checked) setUseB2BCredit(false);
+            }} />
           </label>
         )}
         {useCredit && <div className="summary-row credit-applied"><span>Credit applied</span><strong>-{money(creditApplied)}</strong></div>}
+        {isB2BBuyer && profile?.verificationStatus !== "Verified" && (
+          <p className="checkout-sync-note" role="status">
+            B2B credit checkout is unavailable until the Store Owner approves your profile.
+          </p>
+        )}
+        {isB2BBuyer && profile?.verificationStatus === "Verified" && (
+          <label className="credit-option">
+            <span>
+              <strong>Pay with B2B credit</strong>
+              <small>
+                {profile?.creditLimit !== undefined
+                  ? `Available: ${money(availableCredit)}`
+                  : "Available credit is verified at checkout"}
+              </small>
+            </span>
+            <input type="checkbox" checked={useB2BCredit} onChange={(event) => {
+              setUseB2BCredit(event.target.checked);
+              setOnlinePaymentRequired(false);
+              if (event.target.checked) setUseCredit(false);
+            }} />
+          </label>
+        )}
         <div className="summary-row"><span>GST (20%)</span><strong>{money(gstAmount)}</strong></div>
         <div className="summary-total"><span>Total</span><strong>{money(payableAmount)}</strong></div>
         {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
@@ -217,7 +436,11 @@ export default function Cart() {
           <p className="checkout-error">Complete your profile and wait for admin verification before ordering. <Link to="/profile">Open profile</Link></p>
         )}
         <button className="checkout-btn" type="button" disabled={isCheckingOut || profile?.verificationStatus !== "Verified"} onClick={handleCheckout}>
-          {isCheckingOut ? "Placing order..." : "Proceed to Checkout"}
+          {isCheckingOut
+            ? "Placing order..."
+            : onlinePaymentRequired
+              ? "Continue with Online Payment"
+              : "Proceed to Checkout"}
         </button>
         <p className="secure-payment">Secure checkout • Inclusive of all taxes</p>
         <p className="razorpay-test-note">Razorpay test mode</p>

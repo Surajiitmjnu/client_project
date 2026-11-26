@@ -1,10 +1,28 @@
 import { collection, doc, onSnapshot, setDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import { auth, db } from "../firebase.js";
 
 const CUSTOMERS_KEY = "mayoor-registered-customers";
 const LOYALTY_KEY = "mayoor-loyal-customers";
 const CREDIT_KEY = "mayoor-customer-credits";
 const PROFILE_KEY = "mayoor-customer-profiles";
+const PROFILE_FIELDS = new Set([
+  "fullName",
+  "phone",
+  "shopName",
+  "shopAddress",
+  "gstin",
+  "photoDataUrl",
+]);
+
+export function getCustomerProfileFieldError(field, value) {
+  if (field === "phone" && !/^\d{10}$/.test(value)) {
+    return "Mobile number must contain exactly 10 digits.";
+  }
+  if (field === "gstin" && !/^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[A-Z0-9]$/.test(value)) {
+    return "Enter a valid 15-character GSTIN.";
+  }
+  return "";
+}
 
 function readList(key) {
   try {
@@ -72,28 +90,41 @@ export function getCustomerProfile(uid) {
 
 export async function saveCustomerProfile(uid, details) {
   if (!uid) throw new Error("A signed-in customer is required.");
+  if (auth.currentUser?.uid !== uid) {
+    throw new Error("Your sign-in session does not match the profile being saved. Please sign in again.");
+  }
+  const entries = Object.entries(details || {});
+  if (!entries.length || entries.some(([field]) => !PROFILE_FIELDS.has(field))) {
+    throw new Error("The profile update contains no supported fields.");
+  }
+  for (const [field, value] of entries) {
+    const fieldError = getCustomerProfileFieldError(field, value);
+    if (fieldError) throw new Error(fieldError);
+  }
+
+  const profileDetails = Object.fromEntries(entries);
+  const updatedAt = new Date().toISOString();
+  await setDoc(doc(db, "customers", uid), {
+    uid,
+    ...profileDetails,
+    updatedAt,
+  }, { merge: true });
+
   const existing = getCustomerProfile(uid);
   const profile = {
     ...existing,
-    ...details,
+    ...profileDetails,
     uid,
-    verificationStatus: "Pending",
-    updatedAt: new Date().toISOString(),
+    updatedAt,
   };
-  const profiles = getProfileList().filter((item) => item.uid !== uid);
-  localStorage.setItem(PROFILE_KEY, JSON.stringify([...profiles, profile]));
-  window.dispatchEvent(new CustomEvent("customer-profile-updated", { detail: profile }));
   try {
-    await setDoc(doc(db, "customers", uid), {
-      ...details,
-      verificationStatus: "Pending",
-      updatedAt: profile.updatedAt,
-    }, { merge: true });
-    return { ...profile, syncStatus: "synced" };
+    const profiles = getProfileList().filter((item) => item.uid !== uid);
+    localStorage.setItem(PROFILE_KEY, JSON.stringify([...profiles, profile]));
   } catch (error) {
-    console.error("Unable to save customer profile to Firestore:", error);
-    return { ...profile, syncStatus: "local" };
+    console.error("Profile was saved to Firestore, but its local cache could not be updated:", error);
   }
+  window.dispatchEvent(new CustomEvent("customer-profile-updated", { detail: profile }));
+  return { ...profile, syncStatus: "synced" };
 }
 
 export async function setCustomerVerification(uid, verificationStatus) {
