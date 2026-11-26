@@ -10,6 +10,11 @@ test("allows warehouse staff to import products", () => {
   assert.equal(hasProductImportRole({ roles: ["WAREHOUSE_STAFF"] }), true);
 });
 
+test("allows configured admin UID and email to import products", () => {
+  assert.equal(hasProductImportRole({ uid: "dkwkAyrzEDSkJYG1tN1VNFyFjdf1" }), true);
+  assert.equal(hasProductImportRole({ email: "priyanshubhardaj9973@gmail.com" }), true);
+});
+
 test("rejects retail and unrecognized roles", () => {
   assert.equal(hasProductImportRole({ role: "RETAIL_CUSTOMER" }), false);
   assert.equal(hasProductImportRole({ role: "ADMIN" }), false);

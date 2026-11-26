@@ -12,6 +12,8 @@ import {
 import { auth, db } from "../firebase";
 
 const NOTIFICATIONS_COLLECTION = "notifications";
+const ADMIN_UID = "dkwkAyrzEDSkJYG1tN1VNFyFjdf1";
+const ADMIN_EMAIL = "priyanshubhardaj9973@gmail.com";
 
 export async function sendCustomerNotification({ recipientId, title, message }) {
   const sender = auth.currentUser;
@@ -19,7 +21,11 @@ export async function sendCustomerNotification({ recipientId, title, message }) 
     throw new Error("Sign in with an authorized admin account before sending notifications.");
   }
   const token = await getIdTokenResult(sender);
-  if (token.claims.admin !== true) {
+  const isAllowedAdmin =
+    sender.uid === ADMIN_UID ||
+    (sender.email || "").trim().toLowerCase() === ADMIN_EMAIL ||
+    token.claims.admin === true;
+  if (!isAllowedAdmin) {
     throw new Error("This account is not authorized to send customer notifications.");
   }
   if (!recipientId) throw new Error("Select a customer to receive this notification.");

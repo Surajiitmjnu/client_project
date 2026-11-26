@@ -7,16 +7,144 @@
 }
 * { box-sizing: border-box; }
 .ms-admin { min-height: 100vh; background: #f5f5ff; }
-.ms-login-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: linear-gradient(135deg, #f5f5ff, #ece7ff); }
-.ms-login-card { width: min(100%, 390px); display: grid; gap: 14px; padding: 34px; border: 1px solid #e4e1f3; border-radius: 20px; background: white; box-shadow: 0 18px 50px #5a2fe71c; }
-.ms-login-brand { width: 50px; height: 50px; display: grid; place-items: center; border-radius: 14px; color: white; background: linear-gradient(145deg,#8755ff,#5a2fe7); }
-.ms-login-card h1 { margin: 4px 0 0; color: #101832; font-size: 27px; }
-.ms-login-card p { margin: -5px 0 8px; color: #63708c; font-size: 13px; }
-.ms-login-card label { display: grid; gap: 6px; color: #25304b; font-size: 12px; font-weight: 600; }
-.ms-login-card input { border: 1px solid #dfe2ef; border-radius: 8px; padding: 11px; outline: none; font: inherit; }
-.ms-login-card input:focus { border-color: #7540f6; box-shadow: 0 0 0 3px #7540f61c; }
-.ms-login-card > button { border: 0; border-radius: 9px; padding: 12px; color: white; background: linear-gradient(100deg,#7540f6,#6232e8); font: inherit; font-weight: 700; cursor: pointer; }
-.ms-login-error { color: #d83d4a; font-size: 12px; font-weight: 600; }
+#root:has(.ms-login-page) {
+  width: 100%;
+  max-width: none;
+  border: 0;
+  text-align: left;
+}
+.ms-login-page {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  padding: 48px;
+  background:
+    radial-gradient(ellipse at 9% 12%, rgba(212, 154, 53, .16), transparent 28%),
+    radial-gradient(ellipse at 91% 87%, rgba(39, 99, 79, .13), transparent 30%),
+    linear-gradient(135deg, #f8fbf8, #eef5ef 54%, #fffaf0);
+  color: #27352f;
+}
+.ms-login-page::before,
+.ms-login-page::after {
+  position: absolute;
+  z-index: -1;
+  border: 1px solid rgba(39, 99, 79, .1);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+.ms-login-page::before { width: 520px; height: 520px; top: -290px; right: -145px; }
+.ms-login-page::after { width: 390px; height: 390px; bottom: -240px; left: -150px; }
+.ms-login-layout {
+  width: min(1120px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(380px, .82fr);
+  align-items: center;
+  gap: clamp(42px, 7vw, 100px);
+  margin: auto;
+}
+.ms-login-intro {
+  min-width: 0;
+  min-height: 580px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+.ms-login-store-brand { display: flex; align-items: center; gap: 13px; }
+.ms-login-brand {
+  width: 48px;
+  height: 48px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: linear-gradient(145deg, #1d5a48, #173f35);
+  box-shadow: 0 8px 20px rgba(23, 63, 53, .18);
+  color: white;
+}
+.ms-login-store-brand strong,
+.ms-login-store-brand small { display: block; }
+.ms-login-store-brand strong { color: #173f35; font-size: 18px; letter-spacing: -.3px; }
+.ms-login-store-brand small { margin-top: 3px; color: #6b7b72; font-size: 12px; }
+.ms-login-intro-copy { max-width: 540px; margin: 55px 0 40px; }
+.ms-login-eyebrow { color: #b7791f; font-size: 11px; font-weight: 800; letter-spacing: 1.6px; }
+.ms-login-intro-copy h2 {
+  margin: 17px 0 16px;
+  color: #173f35;
+  font-size: clamp(38px, 4.6vw, 58px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -2px;
+}
+.ms-login-intro-copy p { max-width: 440px; color: #6b7b72; font-size: 15px; line-height: 1.8; }
+.ms-login-features { display: flex; flex-wrap: wrap; gap: 10px; }
+.ms-login-features div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 13px;
+  border: 1px solid rgba(226, 235, 228, .9);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .66);
+  color: #40564a;
+  font-size: 12px;
+  font-weight: 600;
+}
+.ms-login-features svg { flex: 0 0 auto; color: #27634f; }
+.ms-login-note { display: flex; align-items: center; gap: 9px; margin-top: 24px; color: #6b7b72; font-size: 12px; }
+.ms-login-note svg { color: #27634f; }
+.ms-login-card {
+  width: 100%;
+  display: grid;
+  gap: 20px;
+  padding: 42px;
+  border: 1px solid #e2ebe4;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, .96);
+  box-shadow: 0 24px 70px rgba(23, 63, 53, .12);
+}
+.ms-login-card-heading { margin-bottom: 5px; }
+.ms-login-card h1 { margin: 10px 0 8px; color: #173f35; font-size: 32px; font-weight: 700; letter-spacing: -1px; }
+.ms-login-card p { color: #6b7b72; font-size: 13px; line-height: 1.6; }
+.ms-login-card label { display: grid; gap: 8px; color: #354a3e; font-size: 12px; font-weight: 700; }
+.ms-login-input {
+  min-width: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 13px;
+  border: 1px solid #dfe8e1;
+  border-radius: 9px;
+  color: #829187;
+  transition: border-color .2s, box-shadow .2s;
+}
+.ms-login-input:focus-within { border-color: #6fa88d; box-shadow: 0 0 0 4px rgba(111, 168, 141, .13); }
+.ms-login-input input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #27352f; font: inherit; font-size: 13px; }
+.ms-login-input input::placeholder { color: #a0aaa3; }
+.ms-login-card > button {
+  min-height: 48px;
+  margin-top: 2px;
+  border: 0;
+  border-radius: 9px;
+  padding: 12px;
+  background: linear-gradient(110deg, #173f35, #27634f);
+  color: white;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .2s, box-shadow .2s, opacity .2s;
+}
+.ms-login-card > button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(23, 63, 53, .2); }
+.ms-login-card > button:disabled { cursor: wait; opacity: .7; }
+.ms-login-card > button:focus-visible { outline: 3px solid rgba(111, 168, 141, .45); outline-offset: 3px; }
+.ms-login-error { color: #a64e37; font-size: 12px; font-weight: 600; line-height: 1.5; }
+.ms-login-secure { display: flex; align-items: center; justify-content: center; gap: 7px; color: #849188; font-size: 10px; }
+.ms-login-secure svg { color: #55816b; }
 .ms-topbar {
   height: 82px; position: fixed; z-index: 20; inset: 0 0 auto 0;
   display: flex; align-items: center; gap: 34px; padding: 0 28px;
@@ -268,6 +396,28 @@
   .ms-product-thumb { width: 34px; height: 34px; }
   .ms-product-row small { font-size: 10px; }
   .ms-demo-note { text-align: left; line-height: 1.5; }
+}
+
+@media (max-width: 900px) {
+  .ms-login-page { padding: 38px 24px; }
+  .ms-login-layout { max-width: 560px; grid-template-columns: minmax(0, 1fr); gap: 34px; }
+  .ms-login-intro { min-height: 0; padding: 0; }
+  .ms-login-intro-copy { margin: 40px 0 22px; }
+  .ms-login-intro-copy h2 { max-width: 500px; font-size: clamp(38px, 7vw, 52px); }
+  .ms-login-card { max-width: 560px; justify-self: center; }
+}
+@media (max-width: 540px) {
+  .ms-login-page { min-height: 100svh; padding: 28px 16px; }
+  .ms-login-layout { gap: 26px; }
+  .ms-login-store-brand .ms-login-brand { width: 43px; height: 43px; }
+  .ms-login-intro-copy { margin: 32px 0 18px; }
+  .ms-login-intro-copy h2 { margin: 12px 0; font-size: 39px; letter-spacing: -1.5px; }
+  .ms-login-intro-copy p { font-size: 13px; }
+  .ms-login-features { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ms-login-features div { padding: 10px; font-size: 11px; }
+  .ms-login-note { margin-top: 17px; font-size: 11px; }
+  .ms-login-card { gap: 17px; padding: 28px 22px; border-radius: 16px; }
+  .ms-login-card h1 { font-size: 29px; }
 }
 
 /* Shared Mayoor Store visual language */

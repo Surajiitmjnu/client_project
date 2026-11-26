@@ -4,13 +4,13 @@ import {
   Database, Tag, Star, ChartNoAxesColumnIncreasing, Settings, LogOut,
   Search, Bell, ChevronDown, ShoppingCart, IndianRupee, Box, CalendarDays,
   ChartColumnIncreasing, PieChart, Trophy, Eye, UserCheck, Plus, Trash2, Save,
-  Upload, Download, FileSpreadsheet, Send
+  Upload, Download, FileSpreadsheet, Send, Mail, LockKeyhole, ShieldCheck
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid,
   Tooltip, PieChart as RePieChart, Pie, Cell
 } from "recharts";
-import { getIdTokenResult, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import "./AdminDashboard.css";
 import { getPricingSettings, savePricingSettings } from "../utils/pricing";
@@ -50,11 +50,19 @@ const navItems = [
   [Settings, "Settings"]
 ];
 
+const ADMIN_UID = "dkwkAyrzEDSkJYG1tN1VNFyFjdf1";
+const ADMIN_EMAIL = "priyanshubhardaj9973@gmail.com";
 const PRODUCT_IMPORT_ROLES = new Set(["STORE_OWNER", "WAREHOUSE_STAFF"]);
 
-function hasProductImportRole(claims) {
-  const roles = Array.isArray(claims.roles) ? claims.roles : [];
-  return PRODUCT_IMPORT_ROLES.has(claims.role)
+function isAuthorizedAdmin(user, claims = {}) {
+  const uid = user?.uid || "";
+  const email = (user?.email || "").trim().toLowerCase();
+  if (uid === ADMIN_UID || email === ADMIN_EMAIL) {
+    return true;
+  }
+  const roles = Array.isArray(claims?.roles) ? claims.roles : [];
+  return claims?.admin === true
+    || PRODUCT_IMPORT_ROLES.has(claims?.role)
     || roles.some((role) => PRODUCT_IMPORT_ROLES.has(role));
 }
 
@@ -965,6 +973,24 @@ export default function AdminDashboard() {
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (!currentUser) {
+        setAuthenticated(false);
+        return;
+      }
+      try {
+        const token = await getIdTokenResult(currentUser);
+        if (isAuthorizedAdmin(currentUser, token.claims)) {
+          setAuthenticated(true);
+        }
+      } catch {
+        // Keep login form visible if token inspection fails.
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const handleLogin = async (event) => {
     event.preventDefault();
     setLoginError("");
@@ -972,7 +998,7 @@ export default function AdminDashboard() {
     try {
       const credential = await signInWithEmailAndPassword(auth, username.trim(), password);
       const token = await getIdTokenResult(credential.user, true);
-      if (!hasProductImportRole(token.claims)) {
+      if (!isAuthorizedAdmin(credential.user, token.claims)) {
         await signOut(auth);
         throw new Error("This account is not authorized to access product management.");
       }
@@ -987,15 +1013,50 @@ export default function AdminDashboard() {
   if (!authenticated) {
     return (
       <main className="ms-login-page">
-        <form className="ms-login-card" onSubmit={handleLogin}>
-          <div className="ms-login-brand"><ShoppingCart size={24} /></div>
-          <h1>Admin portal</h1>
-          <p>Sign in to manage your Mayoor Store.</p>
-          <label>Email<input type="email" autoComplete="username" value={username} onChange={(event) => setUsername(event.target.value)} required /></label>
-          <label>Password<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
-          {loginError && <span className="ms-login-error" role="alert">{loginError}</span>}
-          <button type="submit" disabled={isLoggingIn}>{isLoggingIn ? "Signing in..." : "Sign in"}</button>
-        </form>
+        <div className="ms-login-layout">
+          <section className="ms-login-intro" aria-labelledby="ms-login-heading">
+            <div className="ms-login-store-brand">
+              <span className="ms-login-brand"><ShoppingCart size={23} strokeWidth={2.2} /></span>
+              <span><strong>Mayoor Store</strong><small>Beauty &amp; personal care</small></span>
+            </div>
+            <div className="ms-login-intro-copy">
+              <span className="ms-login-eyebrow">STORE ADMINISTRATION</span>
+              <h2 id="ms-login-heading">Your store, in good hands.</h2>
+              <p>Sign in to keep products, orders, and customer relationships running smoothly.</p>
+            </div>
+            <div className="ms-login-features">
+              <div><Package size={18} /><span>Manage your catalog</span></div>
+              <div><ClipboardList size={18} /><span>Keep orders on track</span></div>
+              <div><Users size={18} /><span>Support your customers</span></div>
+            </div>
+            <div className="ms-login-note"><ShieldCheck size={18} /><span>Private access for authorized store staff</span></div>
+          </section>
+
+          <form className="ms-login-card" onSubmit={handleLogin}>
+            <div className="ms-login-card-heading">
+              <span className="ms-login-eyebrow">ADMINISTRATOR ACCESS</span>
+              <h1>Welcome back</h1>
+              <p>Enter your staff account details to continue.</p>
+            </div>
+            <label htmlFor="admin-email">Email address
+              <span className="ms-login-input">
+                <Mail size={18} aria-hidden="true" />
+                <input id="admin-email" type="email" autoComplete="username" placeholder="name@mayoorstore.com" value={username} onChange={(event) => setUsername(event.target.value)} required />
+              </span>
+            </label>
+            <label htmlFor="admin-password">Password
+              <span className="ms-login-input">
+                <LockKeyhole size={18} aria-hidden="true" />
+                <input id="admin-password" type="password" autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+              </span>
+            </label>
+            {loginError && <span className="ms-login-error" role="alert">{loginError}</span>}
+            <button type="submit" disabled={isLoggingIn}>
+              {isLoggingIn ? "Signing in..." : "Sign in to dashboard"}
+            </button>
+            <div className="ms-login-secure"><ShieldCheck size={16} /><span>Secure sign in · Your information is protected</span></div>
+          </form>
+        </div>
       </main>
     );
   }
