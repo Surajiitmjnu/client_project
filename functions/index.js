@@ -3,13 +3,25 @@ const Razorpay = require("razorpay");
 const { randomUUID } = require("crypto");
 const { defineSecret } = require("firebase-functions/params");
 const { HttpsError, onCall } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const { hasProductImportRole } = require("./authz");
+const { createEmailRetryRepository } = require("./repositories/emailRetryRepository");
+const { createEmailRetryService } = require("./services/emailRetryService");
 
 admin.initializeApp();
 
 const razorpayKeyId = defineSecret("RAZORPAY_KEY_ID");
 const razorpayKeySecret = defineSecret("RAZORPAY_KEY_SECRET");
+const retryFailedEmails = createEmailRetryService(
+  createEmailRetryRepository(admin.firestore()),
+  logger,
+);
+
+exports.retryFailedEmails = onSchedule(
+  { schedule: "every 1 minutes", maxInstances: 1, concurrency: 1 },
+  async () => retryFailedEmails(),
+);
 
 exports.createRazorpayOrder = onCall(
   { secrets: [razorpayKeyId, razorpayKeySecret] },

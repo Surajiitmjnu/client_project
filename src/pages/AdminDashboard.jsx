@@ -27,8 +27,10 @@ import {
   productsToCsv,
   rejectedRowsToCsv,
   saveProductVariant,
+  deactivateProductVariant,
   subscribeToProducts,
 } from "../utils/productStore";
+import { isProductVariantActive } from "../utils/productVariants";
 import { subscribeToOrders, updateOrderStatus } from "../utils/orderStore";
 import { removeCoupon, saveCoupon, subscribeToCoupons } from "../utils/couponStore";
 import { sendCustomerNotification } from "../utils/notificationStore";
@@ -95,6 +97,7 @@ function AdminDashboardContent({ onLogout }) {
     wholesaleOnly: false,
   });
   const [isSavingVariant, setIsSavingVariant] = useState(false);
+  const [deactivatingVariantSku, setDeactivatingVariantSku] = useState("");
   const [coupons, setCoupons] = useState([]);
   const [couponForm, setCouponForm] = useState({ code: "", discountPercent: 10 });
   const [couponMessage, setCouponMessage] = useState("");
@@ -285,6 +288,23 @@ function AdminDashboardContent({ onLogout }) {
     }
   };
 
+  const handleDeactivateProductVariant = async (sku) => {
+    if (!window.confirm(`Deactivate variant ${sku}? Its record will be retained.`)) return;
+
+    setDeactivatingVariantSku(sku);
+    setCatalogStatus("");
+    setCatalogError("");
+    try {
+      await deactivateProductVariant(variantForm.productId, sku);
+      setCatalogStatus(`Variant ${sku} deactivated. Its record and references were retained.`);
+    } catch (error) {
+      console.error("Product variant deactivation failed:", error);
+      setCatalogError(error.message || "Product variant could not be deactivated.");
+    } finally {
+      setDeactivatingVariantSku("");
+    }
+  };
+
   const handleOrderStatusChange = async (orderId, status) => {
     setUpdatingOrderId(orderId);
     setOrdersError("");
@@ -363,6 +383,10 @@ function AdminDashboardContent({ onLogout }) {
   const filteredCustomers = customers.filter((customer) =>
     `${customer.name || ""} ${customer.email || ""}`.toLowerCase().includes(customerSearch.toLowerCase()),
   );
+  const selectedProductVariants = catalogProducts
+    .find((product) => product.id === variantForm.productId)
+    ?.variants
+    ?.filter((variant) => variant && typeof variant === "object") || [];
 
   const savePricing = () => {
     setPricing(savePricingSettings({ ...pricing, productMoqs }));
@@ -621,6 +645,30 @@ function AdminDashboardContent({ onLogout }) {
               <Save size={16} /> {isSavingVariant ? "Saving variant..." : "Save variant"}
             </button>
           </form>
+          {variantForm.productId && (
+            <div className="ms-coupon-list" aria-label="Product variants">
+              {selectedProductVariants.map((variant, index) => (
+                <div className="ms-coupon-row" key={variant.sku || `variant-${index}`}>
+                  <span>
+                    <strong>{variant.sku || "Unlabelled variant"}</strong>
+                    <small>{isProductVariantActive(variant) ? "Active" : "Inactive · record retained"}</small>
+                  </span>
+                  {isProductVariantActive(variant) && (
+                    <button
+                      type="button"
+                      className="ms-icon-button"
+                      aria-label={`Deactivate variant ${variant.sku}`}
+                      disabled={deactivatingVariantSku === variant.sku}
+                      onClick={() => handleDeactivateProductVariant(variant.sku)}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {!selectedProductVariants.length && <p className="ms-empty-customers">No variants for this product.</p>}
+            </div>
+          )}
           {catalogStatus && <p className="ms-catalog-success" role="status">{catalogStatus}</p>}
           {catalogError && <p className="ms-catalog-error" role="alert">{catalogError}</p>}
         </section>

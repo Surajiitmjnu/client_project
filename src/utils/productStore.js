@@ -1,6 +1,15 @@
 import { httpsCallable } from "firebase/functions";
-import { collection, doc, getDocs, getDocsFromServer, onSnapshot, updateDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDocs,
+  getDocsFromServer,
+  onSnapshot,
+  runTransaction,
+  updateDoc,
+} from "firebase/firestore";
 import { db, functions } from "../firebase";
+import { softDeleteProductVariant } from "./productVariants";
 
 const PRODUCT_FIELDS = ["id", "sku", "name", "brand", "category", "price", "msrp", "wholesalePrice", "inventory", "moq", "image"];
 
@@ -254,10 +263,31 @@ export async function saveProductVariant(productId, variant) {
   }
 
   await updateDoc(productReference, {
-    variants: [...variants, variant],
+    variants: [...variants, { ...variant, is_active: true, is_deleted: false }],
     updatedAt: new Date().toISOString(),
   });
-  return [...variants, variant];
+  return [...variants, { ...variant, is_active: true, is_deleted: false }];
+}
+
+export async function deactivateProductVariant(productId, sku) {
+  if (!productId) {
+    throw new Error("A product is required to deactivate a variant.");
+  }
+
+  const productReference = doc(db, "products", String(productId));
+  const updatedAt = new Date().toISOString();
+  return runTransaction(db, async (transaction) => {
+    const productSnapshot = await transaction.get(productReference);
+    if (!productSnapshot.exists()) {
+      throw new Error("The selected product no longer exists.");
+    }
+
+    const product = productSnapshot.data();
+    const variants = Array.isArray(product.variants) ? product.variants : [];
+    const updatedVariants = softDeleteProductVariant(variants, sku, updatedAt);
+    transaction.update(productReference, { variants: updatedVariants, updatedAt });
+    return updatedVariants;
+  });
 }
 
 export async function initializeSampleProducts(products) {

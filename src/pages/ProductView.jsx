@@ -8,6 +8,7 @@ import { auth } from "../firebase";
 import { isCustomerVerified } from "../utils/customerStore";
 import { getProductImageOrigin } from "../utils/productImages";
 import { subscribeToProducts } from "../utils/productStore";
+import { isProductVariantActive } from "../utils/productVariants";
 import { SAMPLE_PRODUCTS } from "../utils/sampleProducts";
 
 function getSecureProductImages(product) {
@@ -110,7 +111,7 @@ export default function ProductView() {
   const moq = getProductMoq(product, currentPricing);
   const activeImageIndex = images.length ? selectedImage % images.length : 0;
   const productVariants = Array.isArray(product.variants)
-    ? product.variants.filter((variant) => variant && typeof variant === "object")
+    ? product.variants.filter(isProductVariantActive)
     : [];
   const variantOptions = {
     size: getVariantAttributeOptions(productVariants, "size"),

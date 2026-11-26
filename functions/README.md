@@ -53,3 +53,17 @@ Deploy the protected importer with:
 ```powershell
 firebase deploy --only functions:importProductCatalog
 ```
+
+# Order email retry queue
+
+Order confirmation emails are written to the `mail` collection after the order is saved, so an email-provider outage does not block order placement. The Firebase Trigger Email extension must be configured to watch this collection. The `retryFailedEmails` scheduled function checks delivery failures each minute and changes eligible `delivery.state: ERROR` documents to `RETRY`. The delay doubles from 1 minute to a 1-hour maximum, based on the extension's delivery attempt count.
+
+The scheduled entry point delegates retry coordination to `services/emailRetryService.js`, which uses `repositories/emailRetryRepository.js` for Firestore access.
+
+Deploy the scheduled retry function with:
+
+```powershell
+firebase deploy --only functions:retryFailedEmails
+```
+
+Verify a provider outage by checking that the order remains created, the mail document records `delivery.state: ERROR`, and its `delivery.attempts` increases after the provider is restored.

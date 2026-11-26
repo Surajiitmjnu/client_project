@@ -1,3 +1,5 @@
+import { isProductVariantActive } from "./productVariants.js";
+
 function normalize(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : "";
 }
@@ -12,7 +14,7 @@ export function createProductSearchIndex(products) {
     skus: [
       product.sku,
       ...(Array.isArray(product.variants)
-        ? product.variants.map((variant) => variant?.sku)
+        ? product.variants.filter(isProductVariantActive).map((variant) => variant.sku)
         : []),
     ]
       .filter((sku) => typeof sku === "string")

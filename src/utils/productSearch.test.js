@@ -34,6 +34,23 @@ test("search supports product and variant SKUs with category and brand facets", 
   );
 });
 
+test("search does not match soft-deleted variant SKUs", () => {
+  const index = createProductSearchIndex([{
+    id: "product-1",
+    name: "Lakme Foundation",
+    variants: [
+      { sku: "SKU-RETIRED-001", is_active: false, is_deleted: true },
+      { sku: "SKU-CURRENT-001" },
+    ],
+  }]);
+
+  assert.deepEqual(filterProductSearchIndex(index, { search: "SKU-RETIRED-001" }), []);
+  assert.deepEqual(
+    filterProductSearchIndex(index, { search: "SKU-CURRENT-001" }).map(({ id }) => id),
+    ["product-1"],
+  );
+});
+
 test("10,000-product search and faceted queries stay under 500 ms", () => {
   const index = createProductSearchIndex(createProducts(10_000));
   const queries = [
