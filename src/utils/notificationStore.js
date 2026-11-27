@@ -59,10 +59,16 @@ export function subscribeToCustomerNotifications(recipientId, onNotifications, o
         const notification = item.data();
         const createdAt = notification.createdAt?.toDate
           ? notification.createdAt.toDate().toISOString()
-          : notification.createdAt || "";
+          : notification.createdAt === null
+            ? new Date().toISOString()
+            : notification.createdAt || "";
         return { id: item.id, ...notification, createdAt };
       })
-      .sort((first, second) => new Date(second.createdAt || 0) - new Date(first.createdAt || 0));
+      .sort((first, second) => {
+        const firstTime = Date.parse(first.createdAt || "");
+        const secondTime = Date.parse(second.createdAt || "");
+        return (Number.isFinite(secondTime) ? secondTime : 0) - (Number.isFinite(firstTime) ? firstTime : 0);
+      });
     onNotifications(notifications);
   }, onError);
 }

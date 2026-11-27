@@ -2,12 +2,12 @@
 .products-page {
   min-height: 100vh;
   padding: 35px 5%;
-  background: #f8f9ff;
-  color: #171936;
+  background: #f7f8f6;
+  color: #27352f;
 }
 .product-category-filters { display: flex; flex-wrap: wrap; gap: 9px; margin: -10px 0 24px; }
-.product-category-filter { padding: 8px 13px; border: 1px solid #e5e1f0; border-radius: 20px; background: white; color: #555d78; font-size: 13px; text-decoration: none; }
-.product-category-filter:hover, .product-category-filter.active { border-color: #7142ff; background: #eee8ff; color: #6435ed; }
+.product-category-filter { padding: 8px 13px; border: 1px solid #e2ebe4; border-radius: 20px; background: white; color: #526057; font-size: 13px; text-decoration: none; }
+.product-category-filter:hover, .product-category-filter.active { border-color: #173f35; background: #edf5ef; color: #173f35; }
 
 .products-filter-form {
   display: flex;
@@ -36,8 +36,8 @@
 }
 
 .products-filter-form button {
-  border-color: #7142ff;
-  background: #7142ff;
+  border-color: #173f35;
+  background: #173f35;
   color: white;
   cursor: pointer;
 }
@@ -62,8 +62,8 @@
 }
 
 .products-heading > span {
-  background: #eee8ff;
-  color: #7142ff;
+  background: #edf5ef;
+  color: #173f35;
   border-radius: 20px;
   padding: 10px 15px;
   font-size: 13px;
@@ -95,9 +95,9 @@
 }
 
 .products-pagination button[aria-current="page"] {
-  border-color: #7142ff;
-  background: #eee8ff;
-  color: #6435ed;
+  border-color: #173f35;
+  background: #edf5ef;
+  color: #173f35;
 }
 
 .products-pagination button:disabled {
@@ -122,7 +122,7 @@
   display: block;
   position: relative;
   overflow: hidden;
-  background: #f0edff;
+  background: #edf5ef;
 }
 
 .product-card-image img {
@@ -142,7 +142,7 @@
   position: absolute;
   top: 12px;
   left: 12px;
-  background: #7142ff;
+  background: #173f35;
   color: white;
   padding: 6px 10px;
   border-radius: 5px;
@@ -189,7 +189,7 @@
 .product-price small { color: #777d98; font-size: 12px; font-weight: 400; }
 
 .view-product-btn {
-  color: #7142ff;
+  color: #173f35;
   text-decoration: none;
   font-size: 12px;
   font-weight: 600;

@@ -3,7 +3,11 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import "./Products.css";
 import { getPricingSettings, getProductMoq } from "../utils/pricing";
-import { getProductImageOrigin } from "../utils/productImages";
+import {
+  getProductImageOrigin,
+  handleProductImageError,
+  resolveProductImageUrl,
+} from "../utils/productImages";
 import { createProductSearchIndex, filterProductSearchIndex } from "../utils/productSearch";
 import { subscribeToProducts } from "../utils/productStore";
 import { SAMPLE_PRODUCTS } from "../utils/sampleProducts";
@@ -203,11 +207,12 @@ export default function Products() {
               >
                 {product.images?.[0] || product.image ? (
                   <img
-                    src={product.images?.[0] || product.image}
+                    src={resolveProductImageUrl(product.images?.[0] || product.image)}
                     alt={product.name}
                     loading={index < 4 ? "eager" : "lazy"}
                     fetchPriority={index === 0 ? "high" : "auto"}
                     decoding="async"
+                    onError={handleProductImageError}
                   />
                 ) : (
                   <span className="product-card-image-placeholder">Image unavailable</span>

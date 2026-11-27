@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Package, Grid2X2, ClipboardList, Users, Building2,
   Database, Tag, Star, ChartNoAxesColumnIncreasing, Settings, LogOut,
@@ -13,9 +14,10 @@ import {
 import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../firebase";
 import "./AdminDashboard.css";
-import { getPricingSettings, savePricingSettings } from "../utils/pricing";
+import { getPricingSettings, savePricingSettings, subscribeToPricingSettings } from "../utils/pricing";
 import {
   getRegisteredCustomers,
+  setCustomerB2BSettings,
   setCustomerCredit,
   setCustomerLoyalty,
   setCustomerVerification,
@@ -26,14 +28,17 @@ import {
   parseProductCsvWithErrors,
   productsToCsv,
   rejectedRowsToCsv,
+  saveProduct,
   saveProductVariant,
   deactivateProductVariant,
   subscribeToProducts,
 } from "../utils/productStore";
 import { isProductVariantActive } from "../utils/productVariants";
-import { subscribeToOrders, updateOrderStatus } from "../utils/orderStore";
+import { getAllowedNextOrderStatuses, normalizeOrderStatus, subscribeToOrders, updateOrderStatus } from "../utils/orderStore";
+import { downloadPackingSlip } from "../utils/invoice";
 import { removeCoupon, saveCoupon, subscribeToCoupons } from "../utils/couponStore";
 import { sendCustomerNotification } from "../utils/notificationStore";
+import { SAMPLE_PRODUCTS } from "../utils/sampleProducts";
 
 const navItems = [
   [LayoutDashboard, "Dashboard"],
@@ -80,8 +85,32 @@ function StatCard({ icon: Icon, title, value, growth, tone }) {
   );
 }
 
+const EMPTY_PRODUCT_FORM = {
+  id: "",
+  name: "",
+  sku: "",
+  brand: "",
+  category: "",
+  price: "",
+  msrp: "",
+  wholesalePrice: "",
+  inventory: "",
+  moq: "1",
+  image: "",
+  description: "",
+  wholesaleOnly: false,
+};
+
+function getAdminSectionFromPath(pathname) {
+  const match = String(pathname || "").match(/^\/admin\/([^/]+)/i);
+  const slug = match?.[1]?.toLowerCase() || "dashboard";
+  return slug === "login" ? "dashboard" : slug;
+}
+
 function AdminDashboardContent({ onLogout }) {
-  const [activeSection, setActiveSection] = useState(() => window.location.hash.slice(1) || "dashboard");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeSection = getAdminSectionFromPath(location.pathname);
   const [pricing, setPricing] = useState(getPricingSettings);
   const [customers, setCustomers] = useState(getRegisteredCustomers);
   const [customerSearch, setCustomerSearch] = useState("");
@@ -95,6 +124,8 @@ function AdminDashboardContent({ onLogout }) {
   const [catalogStatus, setCatalogStatus] = useState("");
   const [catalogError, setCatalogError] = useState("");
   const [productImportErrorLog, setProductImportErrorLog] = useState("");
+  const [productForm, setProductForm] = useState(EMPTY_PRODUCT_FORM);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
   const [variantForm, setVariantForm] = useState({
     productId: "",
     sku: "",
@@ -159,6 +190,14 @@ function AdminDashboardContent({ onLogout }) {
     setCoupons,
     (error) => console.error("Unable to load coupons from Firestore:", error),
   ), []);
+
+  useEffect(() => {
+    const unsubscribePricing = subscribeToPricingSettings((nextSettings) => {
+      setPricing(nextSettings);
+      setProductMoqs(nextSettings.productMoqs || {});
+    });
+    return () => unsubscribePricing();
+  }, []);
 
   useEffect(() => {
     let unsubscribeFromProducts = () => {};
@@ -262,6 +301,48 @@ function AdminDashboardContent({ onLogout }) {
     link.download = "mayoor-products.csv";
     link.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleSaveProduct = async (event) => {
+    event.preventDefault();
+    setIsSavingProduct(true);
+    setCatalogStatus(productForm.id ? "Updating product..." : "Adding product...");
+    setCatalogError("");
+    try {
+      const savedProduct = await saveProduct(productForm);
+      setCatalogStatus(
+        productForm.id
+          ? `Updated product "${savedProduct.name}".`
+          : `Added product "${savedProduct.name}".`,
+      );
+      setProductForm(EMPTY_PRODUCT_FORM);
+    } catch (error) {
+      console.error("Product save failed:", error);
+      setCatalogStatus("");
+      setCatalogError(error.message || "Product could not be saved.");
+    } finally {
+      setIsSavingProduct(false);
+    }
+  };
+
+  const handleEditProduct = (product) => {
+    setCatalogError("");
+    setCatalogStatus("");
+    setProductForm({
+      id: product.id || "",
+      name: product.name || "",
+      sku: product.sku || "",
+      brand: product.brand || "",
+      category: product.category || "",
+      price: product.price ?? "",
+      msrp: product.msrp ?? "",
+      wholesalePrice: product.wholesalePrice ?? "",
+      inventory: product.inventory ?? "",
+      moq: product.moq ?? "1",
+      image: product.image || product.images?.[0] || "",
+      description: product.description || "",
+      wholesaleOnly: Boolean(product.wholesaleOnly),
+    });
   };
 
   const handleSaveProductVariant = async (event) => {
@@ -467,29 +548,23 @@ function AdminDashboardContent({ onLogout }) {
     window.history.replaceState(null, "", `${window.location.pathname}#${notification.section}`);
   };
   const categories = [...new Set(catalogProducts.map((product) => product.category || "Uncategorized"))];
+
   const handleNavigation = (event, section) => {
     event.preventDefault();
-    setActiveSection(section);
-    window.history.replaceState(null, "", `${window.location.pathname}#${section}`);
+    navigate(`/admin/${section}`);
   };
-
-  useEffect(() => {
-    const handleHashChange = () => setActiveSection(window.location.hash.slice(1) || "dashboard");
-    window.addEventListener("hashchange", handleHashChange);
-    return () => window.removeEventListener("hashchange", handleHashChange);
-  }, []);
 
   return (
     <div className="ms-admin">
       <header className="ms-topbar">
-        <a className="ms-brand" href="/">
+        <a
+          className="ms-brand"
+          href="/admin/dashboard"
+          onClick={(event) => handleNavigation(event, "dashboard")}
+        >
           <span className="ms-brand-mark"><ShoppingCart size={25} /></span>
           <span><strong>Mayoor Store</strong><small>Beauty &amp; Personal Care</small></span>
         </a>
-        <label className="ms-search">
-          <Search size={21} />
-          <input placeholder="Search products, orders, customers..." />
-        </label>
         <div className="ms-account">
           <div className="ms-notification-menu">
             <button
@@ -525,7 +600,7 @@ function AdminDashboardContent({ onLogout }) {
             )}
           </div>
           <span className="ms-avatar">A</span>
-          <button className="ms-admin-name">Admin <ChevronDown size={17} /></button>
+          <span className="ms-admin-name">Admin</span>
         </div>
       </header>
 
@@ -533,7 +608,7 @@ function AdminDashboardContent({ onLogout }) {
         <nav>
           {navItems.map(([Icon, label], index) => {
             const section = label === "Coupons & Offers" ? "coupons-&-offers" : label.toLowerCase().replaceAll(" ", "-");
-            return <a href={`#${section}`} onClick={(event) => handleNavigation(event, section)}
+            return <a href={`/admin/${section}`} onClick={(event) => handleNavigation(event, section)}
               className={`ms-nav-link ${activeSection === section || (index === 0 && activeSection === "dashboard") ? "active" : ""}`} key={label}>
               <Icon size={22} /><span>{label}</span>
               {["Products", "Orders"].includes(label) && <ChevronDown className="ms-nav-chevron" size={17} />}
@@ -571,6 +646,25 @@ function AdminDashboardContent({ onLogout }) {
               <input type="file" accept=".csv,text/csv" onChange={handleProductImport} />
             </label>
             <button className="ms-catalog-button" type="button" onClick={handleProductExport}><Download size={16} /> Export CSV</button>
+            <button
+              className="ms-catalog-button"
+              type="button"
+              onClick={async () => {
+                setCatalogStatus("Syncing 100 catalog products to Firestore...");
+                setCatalogError("");
+                try {
+                  const result = await importProducts(SAMPLE_PRODUCTS);
+                  setCatalogStatus(
+                    `Synced ${result.evaluatedCount} products (${result.createdCount} created, ${result.modifiedCount} updated, ${result.failedCount} failed).`,
+                  );
+                } catch (error) {
+                  setCatalogStatus("");
+                  setCatalogError(error.message || "Could not sync catalog products.");
+                }
+              }}
+            >
+              <Plus size={16} /> Load 100 Catalog Products
+            </button>
             {productImportErrorLog && (
               <button className="ms-catalog-button" type="button" onClick={handleProductImportErrorLogDownload}>
                 <Download size={16} /> Download error log
@@ -578,6 +672,161 @@ function AdminDashboardContent({ onLogout }) {
             )}
           </div>
           <p className="ms-csv-format">Inventory headers: <code>sku_code,base_price,stock_quantity,moq_tier</code> · Legacy headers are also accepted: name, price, inventory.</p>
+          <form className="ms-variant-form" onSubmit={handleSaveProduct}>
+            <h4>{productForm.id ? "Update product info" : "Add a new product"}</h4>
+            <label>
+              Product name
+              <input
+                required
+                value={productForm.name}
+                onChange={(event) => setProductForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder="Hydrating Rose Mist"
+              />
+            </label>
+            <label>
+              SKU
+              <input
+                value={productForm.sku}
+                onChange={(event) => setProductForm((current) => ({ ...current, sku: event.target.value }))}
+                placeholder="COS-101"
+              />
+            </label>
+            <label>
+              Brand
+              <input
+                value={productForm.brand}
+                onChange={(event) => setProductForm((current) => ({ ...current, brand: event.target.value }))}
+                placeholder="Mayoor Care"
+              />
+            </label>
+            <label>
+              Category
+              <input
+                value={productForm.category}
+                onChange={(event) => setProductForm((current) => ({ ...current, category: event.target.value }))}
+                placeholder="Skincare"
+              />
+            </label>
+            <label>
+              Price (₹)
+              <input
+                required
+                type="number"
+                min="0"
+                step="0.01"
+                value={productForm.price}
+                onChange={(event) => setProductForm((current) => ({ ...current, price: event.target.value }))}
+                placeholder="299"
+              />
+            </label>
+            <label>
+              MSRP (₹)
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={productForm.msrp}
+                onChange={(event) => setProductForm((current) => ({ ...current, msrp: event.target.value }))}
+                placeholder="399"
+              />
+            </label>
+            <label>
+              Wholesale price (₹)
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={productForm.wholesalePrice}
+                onChange={(event) => setProductForm((current) => ({ ...current, wholesalePrice: event.target.value }))}
+                placeholder="220"
+              />
+            </label>
+            <label>
+              Inventory
+              <input
+                required
+                type="number"
+                min="0"
+                step="1"
+                value={productForm.inventory}
+                onChange={(event) => setProductForm((current) => ({ ...current, inventory: event.target.value }))}
+                placeholder="50"
+              />
+            </label>
+            <label>
+              MOQ
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={productForm.moq}
+                onChange={(event) => setProductForm((current) => ({ ...current, moq: event.target.value }))}
+                placeholder="1"
+              />
+            </label>
+            <label className="ms-product-wide-field">
+              Image URL
+              <input
+                type="url"
+                value={productForm.image}
+                onChange={(event) => setProductForm((current) => ({ ...current, image: event.target.value }))}
+                placeholder="https://example.com/product.jpg"
+              />
+            </label>
+            <label className="ms-product-wide-field">
+              Description
+              <textarea
+                rows="2"
+                value={productForm.description}
+                onChange={(event) => setProductForm((current) => ({ ...current, description: event.target.value }))}
+                placeholder="Key product details, usage, or ingredients"
+              />
+            </label>
+            <label className="ms-variant-checkbox">
+              <input
+                type="checkbox"
+                checked={productForm.wholesaleOnly}
+                onChange={(event) => setProductForm((current) => ({ ...current, wholesaleOnly: event.target.checked }))}
+              />
+              Wholesale-only product
+            </label>
+            <div className="ms-form-actions">
+              <button className="ms-save-button" type="submit" disabled={isSavingProduct}>
+                <Plus size={16} /> {isSavingProduct ? "Saving..." : productForm.id ? "Update product" : "Add product"}
+              </button>
+              {productForm.id && (
+                <button
+                  className="ms-catalog-button"
+                  type="button"
+                  onClick={() => setProductForm(EMPTY_PRODUCT_FORM)}
+                >
+                  Cancel edit
+                </button>
+              )}
+            </div>
+          </form>
+          {catalogProducts.length > 0 && (
+            <div className="ms-coupon-list" aria-label="Catalog products">
+              {catalogProducts.map((product) => (
+                <div className="ms-coupon-row" key={product.id}>
+                  <span>
+                    <strong>{product.name}</strong>
+                    <small>
+                      {product.category || "Uncategorized"} · {money(product.price)} · Stock: {Number(product.inventory ?? 0)}
+                      {product.sku ? ` · SKU: ${product.sku}` : ""}
+                    </small>
+                  </span>
+                  <button
+                    type="button"
+                    className="ms-catalog-button"
+                    onClick={() => handleEditProduct(product)}
+                  >
+                    Edit
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <form className="ms-variant-form" onSubmit={handleSaveProductVariant}>
             <h4>Add or update a product variant</h4>
             <label>
@@ -842,12 +1091,12 @@ function AdminDashboardContent({ onLogout }) {
                     <Tooltip />
                   </RePieChart>
                 </ResponsiveContainer>
-                <div className="ms-donut-label"><strong>1,248</strong><span>Orders</span></div>
+                <div className="ms-donut-label"><strong>{orders.length.toLocaleString("en-IN")}</strong><span>Orders</span></div>
               </div>
               <div className="ms-legend">
                 {orderMix.map((item) => <div className="ms-legend-item" key={item.name}>
                   <i style={{ background: item.color }} />
-                  <span>{item.name}<small>{Math.round(item.value / 1248 * 100)}% ({item.value})</small></span>
+                  <span>{item.name}<small>{orders.length ? Math.round((item.value / orders.length) * 100) : 0}% ({item.value})</small></span>
                 </div>)}
               </div>
             </div>
@@ -865,15 +1114,24 @@ function AdminDashboardContent({ onLogout }) {
                 <thead><tr><th>#</th><th>Customer</th><th>Type</th><th>Total</th><th>Status</th><th>Date</th><th>Fulfill order</th></tr></thead>
                 <tbody>{recentOrders.length ? recentOrders.map((order) => {
                   const orderType = String(order.type || "Retail");
-                  const orderStatus = String(order.status || "Pending");
+                  const orderStatus = normalizeOrderStatus(order.status || "PENDING");
+                  const allowedNext = getAllowedNextOrderStatuses(orderStatus);
+                  const statusOptions = [orderStatus, ...allowedNext];
                   const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : "—";
                   return <tr key={order.id}>
                   <td>{order.orderId || String(order.id || "—").slice(0, 8)}</td><td>{order.customer || "Guest customer"}</td>
                   <td><span className={`ms-type-badge ${orderType.toLowerCase()}`}>{orderType}</span></td>
                   <td>{money(order.total)}</td><td><span className={`ms-status ${orderStatus.toLowerCase()}`}>{orderStatus}</span></td><td>{orderDate}</td>
-                  <td><select className="ms-order-status-select" value={orderStatus} disabled={updatingOrderId === order.id} onChange={(event) => handleOrderStatusChange(order.id, event.target.value)} aria-label={`Fulfill order ${String(order.id || "").slice(0, 8)}`}>
-                    {["Pending", "Confirmed", "Shipped", "Delivered", "Cancelled"].map((status) => <option key={status} value={status}>{status}</option>)}
-                  </select></td>
+                  <td>
+                    <div className="ms-form-actions">
+                      <select className="ms-order-status-select" value={orderStatus} disabled={updatingOrderId === order.id || !allowedNext.length} onChange={(event) => handleOrderStatusChange(order.id, event.target.value)} aria-label={`Fulfill order ${String(order.id || "").slice(0, 8)}`}>
+                        {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
+                      </select>
+                      <button type="button" className="ms-catalog-button" onClick={() => downloadPackingSlip(order)} title="Download warehouse packing slip">
+                        Packing Slip
+                      </button>
+                    </div>
+                  </td>
                 </tr>;
                 }) : <tr><td colSpan="7" className="ms-empty-customers">No orders have been placed yet.</td></tr>}</tbody>
               </table>
@@ -946,6 +1204,53 @@ function AdminDashboardContent({ onLogout }) {
               <div><small>Shop name</small><strong>{selectedCustomer.shopName || "Not provided"}</strong></div>
               <div className="ms-detail-wide"><small>Shop address</small><strong>{selectedCustomer.shopAddress || "Not provided"}</strong></div>
             </div>
+            <form
+              className="ms-variant-form"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                const updated = await setCustomerB2BSettings(selectedCustomer.uid, {
+                  customerType: selectedCustomer.customerType || (selectedCustomer.gstin ? "B2B" : "RETAIL"),
+                  creditLimit: selectedCustomer.creditLimit ?? 0,
+                  paymentPeriodDays: selectedCustomer.paymentPeriodDays ?? 30,
+                });
+                setSelectedCustomer((current) => (current ? { ...current, ...updated } : current));
+              }}
+            >
+              <h4>B2B Credit &amp; Account Terms</h4>
+              <label>
+                Account type
+                <select
+                  value={selectedCustomer.customerType || (selectedCustomer.gstin ? "B2B" : "RETAIL")}
+                  onChange={(event) => setSelectedCustomer((current) => ({ ...current, customerType: event.target.value }))}
+                >
+                  <option value="RETAIL">Retail</option>
+                  <option value="B2B">B2B Wholesale</option>
+                </select>
+              </label>
+              <label>
+                Credit limit (₹)
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  value={selectedCustomer.creditLimit ?? 0}
+                  onChange={(event) => setSelectedCustomer((current) => ({ ...current, creditLimit: event.target.value }))}
+                />
+              </label>
+              <label>
+                Net terms (days)
+                <select
+                  value={selectedCustomer.paymentPeriodDays ?? 30}
+                  onChange={(event) => setSelectedCustomer((current) => ({ ...current, paymentPeriodDays: Number(event.target.value) }))}
+                >
+                  <option value={15}>Net 15</option>
+                  <option value={30}>Net 30</option>
+                  <option value={45}>Net 45</option>
+                  <option value={60}>Net 60</option>
+                </select>
+              </label>
+              <button type="submit" className="ms-save-button">Save B2B Terms</button>
+            </form>
             <p className="ms-verification-help">Review the submitted identity, shop, and GSTIN details before approving this customer.</p>
             <div className="ms-modal-actions">
               <button type="button" className={`ms-verification-toggle ${selectedCustomer.verificationStatus === "Verified" ? "verified" : ""}`} onClick={async () => {
@@ -967,6 +1272,8 @@ function AdminDashboardContent({ onLogout }) {
 }
 
 export default function AdminDashboard() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [authenticated, setAuthenticated] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -991,6 +1298,14 @@ export default function AdminDashboard() {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!authenticated && location.pathname !== "/admin/login") {
+      navigate("/admin/login", { replace: true });
+    } else if (authenticated && (location.pathname === "/admin" || location.pathname === "/admin/login")) {
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [authenticated, location.pathname, navigate]);
+
   const handleLogin = async (event) => {
     event.preventDefault();
     setLoginError("");
@@ -1003,6 +1318,7 @@ export default function AdminDashboard() {
         throw new Error("This account is not authorized to access product management.");
       }
       setAuthenticated(true);
+      navigate("/admin/dashboard", { replace: true });
     } catch (error) {
       setLoginError(error.message.replace("Firebase: ", ""));
     } finally {
@@ -1062,6 +1378,9 @@ export default function AdminDashboard() {
   }
 
   return <AdminDashboardContent onLogout={() => {
-    signOut(auth).then(() => setAuthenticated(false));
+    signOut(auth).then(() => {
+      setAuthenticated(false);
+      navigate("/admin/login", { replace: true });
+    });
   }} />;
 }

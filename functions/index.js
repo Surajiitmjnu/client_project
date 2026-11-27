@@ -111,8 +111,9 @@ exports.approveB2BCreditOrder = onCall(async (request) => {
 
   const firestore = admin.firestore();
   const customerReference = firestore.collection("customers").doc(request.auth.uid);
-  const approvalReference = firestore.collection("b2bCreditApprovals").doc(orderReference);
-  const ledgerReference = firestore.collection("CreditLedger").doc(orderReference);
+  const scopedOrderKey = `${request.auth.uid}_${orderReference}`;
+  const approvalReference = firestore.collection("b2bCreditApprovals").doc(scopedOrderKey);
+  const ledgerReference = firestore.collection("CreditLedger").doc(scopedOrderKey);
   const productReferences = inventoryItems.map((item) =>
     firestore.collection("products").doc(item.productId),
   );
@@ -281,10 +282,11 @@ exports.releaseB2BCreditOrder = onCall(async (request) => {
   }
 
   const firestore = admin.firestore();
-  const approvalReference = firestore.collection("b2bCreditApprovals").doc(orderReferenceId);
+  const scopedOrderKey = `${request.auth.uid}_${orderReferenceId}`;
+  const approvalReference = firestore.collection("b2bCreditApprovals").doc(scopedOrderKey);
   const customerReference = firestore.collection("customers").doc(request.auth.uid);
-  const ledgerReference = firestore.collection("CreditLedger").doc(orderReferenceId);
-  const releaseLedgerReference = firestore.collection("CreditLedger").doc(`${orderReferenceId}_release`);
+  const ledgerReference = firestore.collection("CreditLedger").doc(scopedOrderKey);
+  const releaseLedgerReference = firestore.collection("CreditLedger").doc(`${scopedOrderKey}_release`);
 
   return firestore.runTransaction(async (transaction) => {
     const approvalSnapshot = await transaction.get(approvalReference);
@@ -603,89 +605,6 @@ exports.releaseB2BCreditOrder = onCall(async (request) => {
           });
         });
 
-exports.importProductCatalog = onCall(async (request) => {
-  if (!request.auth) {
-        throw new HttpsError("unauthenticated", "Sign in before importing products.");
-  }
-  if (!hasProductImportRole(request.auth.token)) {
-        throw new HttpsError(
-          "permission-denied",
-          "Only STORE_OWNER or WAREHOUSE_STAFF can import product CSV data.",
-        );
-  }
-
-  const requestedProducts = request.data?.products;
-  if (!Array.isArray(requestedProducts) || requestedProducts.length < 1 || requestedProducts.length > 500) {
-        throw new HttpsError("invalid-argument", "Provide between 1 and 500 products per import request.");
-  }
-
-  const productIds = new Set();
-  const products = requestedProducts.map((product) => {
-        const id = String(product?.id || "").trim();
-        const name = String(product?.name || "").trim();
-        const price = Number(product?.price);
-        const inventory = Number(product?.inventory);
-        const moq = Number(product?.moq ?? 1);
-        if (
-          !id ||
-          id.length > 1500 ||
-          id.includes("/") ||
-          !name ||
-          !Number.isFinite(price) ||
-          price < 0 ||
-          !Number.isInteger(inventory) ||
-          inventory < 0 ||
-          !Number.isInteger(moq) ||
-          moq < 1
-        ) {
-          throw new HttpsError("invalid-argument", "Each product requires a valid ID, name, price, inventory, and MOQ.");
-        }
-        if (productIds.has(id)) {
-          throw new HttpsError("invalid-argument", `Product ID ${id} appears more than once in this import batch.`);
-        }
-        productIds.add(id);
-
-        return {
-          id,
-          name,
-          price,
-          inventory,
-          moq,
-          ...(product.sku ? { sku: String(product.sku) } : {}),
-          ...(product.brand ? { brand: String(product.brand) } : {}),
-          ...(product.category ? { category: String(product.category) } : {}),
-          ...(product.image ? { image: String(product.image) } : {}),
-          ...(product.msrp !== undefined ? { msrp: Number(product.msrp) } : {}),
-          ...(product.wholesalePrice !== undefined
-            ? { wholesalePrice: Number(product.wholesalePrice) }
-            : {}),
-        };
-  });
-
-  const firestore = admin.firestore();
-  const productReferences = products.map((product) =>
-        firestore.collection("products").doc(product.id),
-  );
-  const existingSnapshots = await Promise.all(
-        productReferences.map((productReference) => productReference.get()),
-  );
-  const batch = firestore.batch();
-  products.forEach((product, index) => {
-        batch.set(productReferences[index], {
-          ...product,
-          updatedAt: new Date().toISOString(),
-        }, { merge: true });
-  });
-  await batch.commit();
-
-  const modifiedCount = existingSnapshots.filter((snapshot) => snapshot.exists).length;
-  return {
-        evaluatedCount: products.length,
-        createdCount: products.length - modifiedCount,
-        modifiedCount,
-        failedCount: 0,
-  };
-});
         transaction.update(reservationReference, {
           status: "released",
           releasedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -694,3 +613,87 @@ exports.importProductCatalog = onCall(async (request) => {
         return { released: true, stockRestorations };
       });
     });
+
+exports.importProductCatalog = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Sign in before importing products.");
+  }
+  if (!hasProductImportRole(request.auth.token)) {
+    throw new HttpsError(
+      "permission-denied",
+      "Only STORE_OWNER or WAREHOUSE_STAFF can import product CSV data.",
+    );
+  }
+
+  const requestedProducts = request.data?.products;
+  if (!Array.isArray(requestedProducts) || requestedProducts.length < 1 || requestedProducts.length > 500) {
+    throw new HttpsError("invalid-argument", "Provide between 1 and 500 products per import request.");
+  }
+
+  const productIds = new Set();
+  const products = requestedProducts.map((product) => {
+    const id = String(product?.id || "").trim();
+    const name = String(product?.name || "").trim();
+    const price = Number(product?.price);
+    const inventory = Number(product?.inventory);
+    const moq = Number(product?.moq ?? 1);
+    if (
+      !id ||
+      id.length > 1500 ||
+      id.includes("/") ||
+      !name ||
+      !Number.isFinite(price) ||
+      price < 0 ||
+      !Number.isInteger(inventory) ||
+      inventory < 0 ||
+      !Number.isInteger(moq) ||
+      moq < 1
+    ) {
+      throw new HttpsError("invalid-argument", "Each product requires a valid ID, name, price, inventory, and MOQ.");
+    }
+    if (productIds.has(id)) {
+      throw new HttpsError("invalid-argument", `Product ID ${id} appears more than once in this import batch.`);
+    }
+    productIds.add(id);
+
+    return {
+      id,
+      name,
+      price,
+      inventory,
+      moq,
+      ...(product.sku ? { sku: String(product.sku) } : {}),
+      ...(product.brand ? { brand: String(product.brand) } : {}),
+      ...(product.category ? { category: String(product.category) } : {}),
+      ...(product.image ? { image: String(product.image) } : {}),
+      ...(product.msrp !== undefined ? { msrp: Number(product.msrp) } : {}),
+      ...(product.wholesalePrice !== undefined
+        ? { wholesalePrice: Number(product.wholesalePrice) }
+        : {}),
+    };
+  });
+
+  const firestore = admin.firestore();
+  const productReferences = products.map((product) =>
+    firestore.collection("products").doc(product.id),
+  );
+  const existingSnapshots = productReferences.length
+    ? await firestore.getAll(...productReferences)
+    : [];
+  const batch = firestore.batch();
+  products.forEach((product, index) => {
+    batch.set(productReferences[index], {
+      ...product,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  });
+  await batch.commit();
+
+  const modifiedCount = existingSnapshots.filter((snapshot) => snapshot.exists).length;
+  return {
+    evaluatedCount: products.length,
+    createdCount: products.length - modifiedCount,
+    modifiedCount,
+    failedCount: 0,
+  };
+});

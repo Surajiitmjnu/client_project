@@ -19,6 +19,16 @@ function createEmailRetryRepository(firestore) {
     },
 
     async retryFailedEmailIfDue(emailDocument, now) {
+      const initialDelivery = emailDocument.get?.("delivery");
+      if (initialDelivery) {
+        if (initialDelivery.state !== "ERROR") return "no_longer_failed";
+        const initialLastAttemptAt = getTimestampMillis(initialDelivery.endTime);
+        if (initialLastAttemptAt === null) return "invalid_timestamp";
+        if (now - initialLastAttemptAt < getEmailRetryDelayMs(initialDelivery.attempts)) {
+          return "not_due";
+        }
+      }
+
       return firestore.runTransaction(async (transaction) => {
         const currentDocument = await transaction.get(emailDocument.ref);
         if (!currentDocument.exists) return "missing";

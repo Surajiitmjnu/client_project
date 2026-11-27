@@ -2,16 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { Link } from "react-router-dom";
 import { auth } from "../firebase";
-import { cancelOrder, subscribeToOrders } from "../utils/orderStore";
+import { cancelOrder, normalizeOrderStatus as normalizeStoreOrderStatus, subscribeToOrders } from "../utils/orderStore";
 import { downloadInvoice } from "../utils/invoice";
 import "./Orders.css";
 
-const ORDER_STATUSES = ["Pending", "Confirmed", "Shipped", "Delivered"];
+const ORDER_STATUSES = ["PENDING", "CONFIRMED", "PACKAGING", "OUT_FOR_DELIVERY", "DELIVERED"];
 
 function normalizeOrderStatus(status) {
-  const value = String(status || "Pending").trim().toLowerCase();
-  return ORDER_STATUSES.find((candidate) => candidate.toLowerCase() === value)
-    || (value === "cancelled" ? "Cancelled" : "Pending");
+  const normalized = normalizeStoreOrderStatus(status);
+  return ORDER_STATUSES.includes(normalized) || normalized === "CANCELLED"
+    ? normalized
+    : "PENDING";
 }
 
 const money = (amount) => `₹${(Number(amount) || 0).toLocaleString("en-IN", {
@@ -42,7 +43,7 @@ function getOrderNumber(order) {
 function OrderStatus({ status }) {
   const normalizedStatus = normalizeOrderStatus(status);
   const currentIndex = getStatusIndex(normalizedStatus);
-  const isCancelled = normalizedStatus === "Cancelled";
+  const isCancelled = normalizedStatus === "CANCELLED";
 
   return (
     <div className="order-status" aria-label={`Order status: ${normalizedStatus}`}>
@@ -57,12 +58,12 @@ function OrderStatus({ status }) {
                 key={statusName}
               >
                 <span className="order-status-dot" />
-                <span>{statusName}</span>
+                <span>{statusName.replaceAll("_", " ")}</span>
               </div>
             ))}
           </div>
           <span className={`order-status-badge ${normalizedStatus.toLowerCase()}`}>
-            {normalizedStatus}
+            {normalizedStatus.replaceAll("_", " ")}
           </span>
         </>
       )}
@@ -78,12 +79,12 @@ function OrderCard({ order, onCancelled }) {
   const [invoiceError, setInvoiceError] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
-  const isConfirmed = status === "Confirmed";
-  const isDelivered = status === "Delivered";
+  const canCancel = status === "PENDING" || status === "CONFIRMED";
+  const isCompleted = status === "DELIVERED" || status === "COMPLETED";
   const isB2BCredit = order.paymentMethod === "B2B_CREDIT"
     || order.paymentType === "B2B_CREDIT"
     || order.isB2BCredit === true;
-  const canDownloadInvoice = isDelivered || isB2BCredit;
+  const canDownloadInvoice = isCompleted || isB2BCredit || String(order.paymentStatus || "").toLowerCase() === "paid";
 
   const handleInvoiceDownload = async () => {
     setIsDownloading(true);
@@ -99,6 +100,7 @@ function OrderCard({ order, onCancelled }) {
   };
 
   const handleCancelOrder = async () => {
+    if (!window.confirm(`Cancel order #${getOrderNumber(order)}?`)) return;
     setIsCancelling(true);
     setCancelError("");
     try {
@@ -133,7 +135,7 @@ function OrderCard({ order, onCancelled }) {
           <button type="button" className="order-flip-btn" onClick={() => setIsFlipped(true)}>
             View order details
           </button>
-          {isConfirmed && (
+          {canCancel && (
             <button type="button" className="order-cancel-btn" onClick={handleCancelOrder} disabled={isCancelling}>
               {isCancelling ? "Cancelling..." : "Cancel order"}
             </button>

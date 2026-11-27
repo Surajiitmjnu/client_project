@@ -4,7 +4,24 @@ import QRCode from "qrcode";
 import { finalizeOrderInvoice } from "./orderStore";
 
 const STORE_NAME = "MAYOOR STORE";
-const STORE_ADDRESS = "Durgesh Pathak Colony, Siwan, Bihar";
+const STORE_ADDRESS = "Pasnauli, Sagar, Siwan, Bihar";
+const STORE_STATE = "Bihar";
+const STORE_GSTIN = "10AAACM0000A1Z5";
+
+const round2 = (value) => Number((Number(value) || 0).toFixed(2));
+
+function calculateOrderGst({ taxableAmount, gstRate, sellerState, customerShippingState }) {
+  const taxable = Math.max(0, Number(taxableAmount) || 0);
+  const rate = Math.max(0, Number(gstRate) || 0);
+  const isSameState =
+    String(sellerState || "").trim().toLowerCase() ===
+    String(customerShippingState || "").trim().toLowerCase();
+  if (isSameState) {
+    const half = round2((taxable * rate) / 2);
+    return { cgst: half, sgst: half, igst: 0 };
+  }
+  return { cgst: 0, sgst: 0, igst: round2(taxable * rate) };
+}
 
 const moneyValue = (amount) =>
   `Rs. ${(Number(amount) || 0).toLocaleString("en-IN", {
@@ -17,12 +34,13 @@ function orderNumber(order) {
 }
 
 async function loadStampLogo() {
+  let imageUrl = "";
   try {
     const response = await fetch("/mayoor-paid-stamp.png");
     if (!response.ok) return null;
 
     const blob = await response.blob();
-    const imageUrl = URL.createObjectURL(blob);
+    imageUrl = URL.createObjectURL(blob);
 
     const image = new Image();
     image.src = imageUrl;
@@ -36,10 +54,11 @@ async function loadStampLogo() {
     ctx.filter = "grayscale(100%) contrast(130%)";
     ctx.drawImage(image, 0, 0);
 
-    URL.revokeObjectURL(imageUrl);
     return canvas.toDataURL("image/png");
   } catch {
     return null;
+  } finally {
+    if (imageUrl) URL.revokeObjectURL(imageUrl);
   }
 }
 
@@ -81,7 +100,6 @@ export async function downloadInvoice(order) {
   const right = pageWidth - 15;
   const contentWidth = right - left;
 
-  const isDelivered = String(invoiceOrder.status || "").toLowerCase() === "delivered";
   const isB2BCredit = invoiceOrder.paymentMethod === "B2B_CREDIT"
     || invoiceOrder.paymentType === "B2B_CREDIT"
     || invoiceOrder.isB2BCredit === true;
@@ -92,7 +110,7 @@ export async function downloadInvoice(order) {
     )
     || (Number(invoiceOrder.total) === 0 && Number(invoiceOrder.creditApplied) >= 0)
   );
-  const isPaid = isDelivered && isPaymentComplete;
+  const isPaid = isPaymentComplete;
 
   const lineTotal = (item) =>
     (Number(item.price) || 0) * (Number(item.quantity) || 0);
@@ -168,11 +186,16 @@ export async function downloadInvoice(order) {
   pdf.setFontSize(9);
 
   let customerY = 97;
+  const billingAddress = String(invoiceOrder.billingAddress || invoiceOrder.shopAddress || "").trim();
+  const shippingAddress = String(invoiceOrder.shippingAddress || "").trim();
   const customerDetails = [
     customerName,
     invoiceOrder.phone ? `Phone: ${invoiceOrder.phone}` : null,
     invoiceOrder.shopName ? `Shop: ${invoiceOrder.shopName}` : null,
-    invoiceOrder.shopAddress || null,
+    billingAddress || null,
+    shippingAddress && shippingAddress !== billingAddress
+      ? `Shipping Address: ${shippingAddress}`
+      : null,
     invoiceOrder.gstin ? `GSTIN: ${invoiceOrder.gstin}` : null,
   ].filter(Boolean);
 
@@ -186,10 +209,11 @@ export async function downloadInvoice(order) {
   pdf.text("SOLD BY", 115, 90);
   pdf.setFont("helvetica", "normal");
   pdf.text(STORE_NAME, 115, 97);
+  pdf.text(`GSTIN: ${STORE_GSTIN}`, 115, 102);
   pdf.text(
     pdf.splitTextToSize(STORE_ADDRESS, 75),
     115,
-    103
+    108
   );
 
   const tableTop = Math.max(customerY + 9, 125);
@@ -274,12 +298,44 @@ export async function downloadInvoice(order) {
   // Totals
   y += 8;
 
-  const subtotal = items.reduce(
+  const subtotal = round2(items.reduce(
     (sum, item) => sum + lineTotal(item),
     0
-  );
+  ));
 
-  const total = Number(invoiceOrder.total) || subtotal;
+  const parsedTaxable = invoiceOrder.taxableAmount !== undefined && invoiceOrder.taxableAmount !== null && invoiceOrder.taxableAmount !== ""
+    ? Number(invoiceOrder.taxableAmount)
+    : NaN;
+  const explicitDiscount = round2(
+    (Number(invoiceOrder.discountAmount) || 0) + (Number(invoiceOrder.couponDiscount) || 0),
+  );
+  const discountAmount = explicitDiscount > 0
+    ? explicitDiscount
+    : Number.isFinite(parsedTaxable) && subtotal > parsedTaxable
+      ? round2(subtotal - parsedTaxable)
+      : 0;
+  const taxableAmount = Number.isFinite(parsedTaxable)
+    ? parsedTaxable
+    : Math.max(0, round2(subtotal - discountAmount));
+
+  const gstPercent = Number(invoiceOrder.gstPercent) || 18;
+  const rawAddressForState = `${shippingAddress} ${billingAddress}`.trim().toLowerCase();
+  const customerShippingState = invoiceOrder.shippingState ||
+    invoiceOrder.state ||
+    (!rawAddressForState || rawAddressForState.includes("bihar") ? STORE_STATE : "Outside Bihar");
+  const { cgst, sgst, igst } = calculateOrderGst({
+    taxableAmount,
+    gstRate: gstPercent / 100,
+    sellerState: STORE_STATE,
+    customerShippingState,
+  });
+
+  const parsedTotal = invoiceOrder.total !== undefined && invoiceOrder.total !== null && invoiceOrder.total !== ""
+    ? Number(invoiceOrder.total)
+    : NaN;
+  const total = Number.isFinite(parsedTotal)
+    ? parsedTotal
+    : round2(taxableAmount + cgst + sgst + igst + (Number(invoiceOrder.shippingCharges) || 0));
 
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(9);
@@ -290,6 +346,32 @@ export async function downloadInvoice(order) {
   });
 
   y += 7;
+
+  if (discountAmount > 0) {
+    pdf.text("Discount", 135, y);
+    pdf.text(`-${moneyValue(discountAmount)}`, right, y, { align: "right" });
+    y += 6;
+  }
+
+  const halfRate = Number((gstPercent / 2).toFixed(2));
+  if (cgst > 0 || sgst > 0) {
+    pdf.text(`CGST (${halfRate}%)`, 135, y);
+    pdf.text(moneyValue(cgst), right, y, { align: "right" });
+    y += 6;
+    pdf.text(`SGST (${halfRate}%)`, 135, y);
+    pdf.text(moneyValue(sgst), right, y, { align: "right" });
+    y += 6;
+  } else if (igst > 0) {
+    pdf.text(`IGST (${gstPercent}%)`, 135, y);
+    pdf.text(moneyValue(igst), right, y, { align: "right" });
+    y += 6;
+  }
+
+  if (Number(invoiceOrder.creditApplied) > 0) {
+    pdf.text("Credit Applied", 135, y);
+    pdf.text(`-${moneyValue(invoiceOrder.creditApplied)}`, right, y, { align: "right" });
+    y += 6;
+  }
 
   if (Number(invoiceOrder.shippingCharges) > 0) {
     pdf.text("Shipping Charges", 135, y);
@@ -354,4 +436,49 @@ export async function downloadInvoice(order) {
   );
 
   pdf.save(`mayoor-invoice-${number}.pdf`);
+}
+
+export function downloadPackingSlip(order) {
+  const number = orderNumber(order);
+  const items = Array.isArray(order.items) ? order.items : [];
+  const pdf = new jsPDF("p", "mm", "a4");
+  const left = 15;
+  const right = pdf.internal.pageSize.getWidth() - 15;
+
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(16);
+  pdf.text("WAREHOUSE PACKING SLIP", left, 22);
+  pdf.setFontSize(10);
+  pdf.setFont("helvetica", "normal");
+  pdf.text(`${STORE_NAME} · ${STORE_ADDRESS}`, left, 29);
+  pdf.line(left, 34, right, 34);
+
+  pdf.text(`Order ID: ${number}`, left, 42);
+  pdf.text(`Status: ${order.status || "PACKAGING"}`, left, 48);
+  pdf.text(`Customer: ${order.customerName || order.customer || "Customer"}`, left, 54);
+  if (order.shopAddress) {
+    pdf.text(`Ship To: ${order.shopAddress}`, left, 60);
+  }
+
+  let y = 72;
+  pdf.setFont("helvetica", "bold");
+  pdf.text("Item", left, y);
+  pdf.text("SKU / Variant", 105, y);
+  pdf.text("Bin", 150, y);
+  pdf.text("Qty", right, y, { align: "right" });
+  y += 4;
+  pdf.line(left, y, right, y);
+  y += 7;
+
+  pdf.setFont("helvetica", "normal");
+  items.forEach((item) => {
+    const label = `${item.name || "Product"}${item.size ? ` (${item.size})` : ""}`;
+    pdf.text(pdf.splitTextToSize(label, 85), left, y);
+    pdf.text(String(item.sku || item.id || "—").slice(0, 22), 105, y);
+    pdf.text(String(item.binLocation || "BIN-A1"), 150, y);
+    pdf.text(String(item.quantity || 1), right, y, { align: "right" });
+    y += 9;
+  });
+
+  pdf.save(`mayoor-packing-slip-${number}.pdf`);
 }

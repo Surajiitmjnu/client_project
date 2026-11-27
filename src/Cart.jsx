@@ -2,8 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { auth } from "./firebase";
 import { useCart } from "./context/CartContext";
-import { setCustomerCredit } from "./utils/customerStore";
-import { getCustomerProfile } from "./utils/customerStore";
+import { getCustomerProfile, setCustomerCredit, subscribeToCustomerProfile } from "./utils/customerStore";
 import { approveB2BCreditOrder, releaseB2BCreditOrder } from "./utils/b2bCredit";
 import {
   commitProductInventoryReservation,
@@ -67,16 +66,23 @@ export default function Cart() {
   );
 
   useEffect(() => {
+    const uid = auth.currentUser?.uid;
     const refreshProfile = (event) => {
-      if (event.type === "customer-profile-updated" && event.detail?.uid === auth.currentUser?.uid) {
+      if (event.type === "customer-profile-updated" && event.detail?.uid === uid) {
         setProfile(event.detail);
       } else {
-        setProfile(getCustomerProfile(auth.currentUser?.uid));
+        setProfile(getCustomerProfile(uid));
       }
     };
+    const unsubscribeProfile = uid
+      ? subscribeToCustomerProfile(uid, (firestoreProfile) => {
+        if (firestoreProfile) setProfile(firestoreProfile);
+      })
+      : () => {};
     window.addEventListener("customer-profile-updated", refreshProfile);
     window.addEventListener("storage", refreshProfile);
     return () => {
+      unsubscribeProfile();
       window.removeEventListener("customer-profile-updated", refreshProfile);
       window.removeEventListener("storage", refreshProfile);
     };
@@ -103,10 +109,6 @@ export default function Cart() {
       setCheckoutError("B2B credit checkout is unavailable until the Store Owner approves your profile.");
       return;
     }
-    if (profile?.verificationStatus !== "Verified") {
-      setCheckoutError("Your profile must be verified before placing an order.");
-      return;
-    }
     if (useB2BCredit && !isB2BBuyer) {
       setCheckoutError("B2B credit is available only to verified business buyers.");
       return;
@@ -120,7 +122,7 @@ export default function Cart() {
       items: cart.map(({ id, name, quantity, price }) => ({ id, name, quantity, price })),
       total: payableAmount,
       taxableAmount: Math.max(0, payableAmount - gstAmount),
-      gstPercent: 20,
+      gstPercent: 18,
       gstAmount,
       creditApplied,
       paymentStatus: payableAmount === 0 ? "Paid" : "Pending",
@@ -167,11 +169,11 @@ export default function Cart() {
     };
     try {
       if (!useB2BCredit) {
-        inventoryReservationAttempted = true;
         inventoryReservation = await reserveProductInventory({
           orderReference: order.orderId,
           items: order.items,
         });
+        inventoryReservationAttempted = true;
         order.inventoryReservationId = inventoryReservation.reservationId;
         order.inventoryReservations = inventoryReservation.inventoryReservations;
       }
@@ -239,6 +241,9 @@ export default function Cart() {
     } catch (error) {
       console.error("Checkout failed:", error);
       let errorMessage = error.message || "Payment failed. Please try again.";
+      if (error.code === "functions/internal" || /^internal(\s|\b)/i.test(errorMessage)) {
+        errorMessage = "Checkout service returned an internal server error. Please ensure Firebase Cloud Functions are deployed and try again.";
+      }
       const insufficientCredit = error.details?.errorCode === "ERR-CRD-002"
         || errorMessage.includes("ERR-CRD-002");
       if (insufficientCredit) {
@@ -429,13 +434,10 @@ export default function Cart() {
             }} />
           </label>
         )}
-        <div className="summary-row"><span>GST (20%)</span><strong>{money(gstAmount)}</strong></div>
+        <div className="summary-row"><span>GST (18%)</span><strong>{money(gstAmount)}</strong></div>
         <div className="summary-total"><span>Total</span><strong>{money(payableAmount)}</strong></div>
         {checkoutError && <p className="checkout-error" role="alert">{checkoutError}</p>}
-        {profile?.verificationStatus !== "Verified" && (
-          <p className="checkout-error">Complete your profile and wait for admin verification before ordering. <Link to="/profile">Open profile</Link></p>
-        )}
-        <button className="checkout-btn" type="button" disabled={isCheckingOut || profile?.verificationStatus !== "Verified"} onClick={handleCheckout}>
+        <button className="checkout-btn" type="button" disabled={isCheckingOut} onClick={handleCheckout}>
           {isCheckingOut
             ? "Placing order..."
             : onlinePaymentRequired

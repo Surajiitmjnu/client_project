@@ -34,13 +34,33 @@ function loadRazorpayScript() {
     script.src = RAZORPAY_SCRIPT_URL;
     script.async = true;
     script.onload = () => resolve(true);
-    script.onerror = () => reject(new Error("Unable to load Razorpay Checkout."));
+    script.onerror = () => {
+      scriptPromise = null;
+      script.remove();
+      reject(new Error("Unable to load Razorpay Checkout."));
+    };
     document.body.appendChild(script);
   });
   return scriptPromise;
 }
 
 export async function createRazorpayOrder({ amount, orderReference }) {
+  const amountInPaise = Math.round(Number(amount) * 100);
+  if (!Number.isSafeInteger(amountInPaise) || amountInPaise <= 0) {
+    throw new Error("A valid positive payment amount is required.");
+  }
+
+  const clientKeyId = String(import.meta.env.VITE_RAZORPAY_KEY_ID || "").trim();
+  if (clientKeyId) {
+    return {
+      id: "",
+      amount: amountInPaise,
+      currency: "INR",
+      receipt: String(orderReference || ""),
+      keyId: clientKeyId,
+    };
+  }
+
   const createOrder = httpsCallable(functions, "createRazorpayOrder");
   const response = await createOrder({ amount, orderReference });
   const paymentOrder = response.data;
@@ -75,7 +95,7 @@ export async function openRazorpayCheckout({
   return new Promise((resolve, reject) => {
     const checkout = new window.Razorpay({
       key: paymentOrder.keyId,
-      order_id: paymentOrder.id,
+      ...(paymentOrder.id ? { order_id: paymentOrder.id } : {}),
       amount: paymentOrder.amount,
       currency: paymentOrder.currency,
       name: "Mayoor Store",

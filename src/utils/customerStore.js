@@ -216,3 +216,21 @@ export function setCustomerCredit(uid, amount) {
     detail: { uid, amount: nextAmount },
   }));
 }
+
+export async function setCustomerB2BSettings(uid, { customerType, creditLimit, paymentPeriodDays } = {}) {
+  if (!uid) throw new Error("A customer ID is required.");
+  const normalizedType = customerType === "B2B" ? "B2B" : "RETAIL";
+  const normalizedLimit = Math.max(0, Number(creditLimit) || 0);
+  const normalizedPeriod = [15, 30, 45, 60].includes(Number(paymentPeriodDays))
+    ? Number(paymentPeriodDays)
+    : 30;
+  const payload = {
+    customerType: normalizedType,
+    isB2B: normalizedType === "B2B",
+    creditLimit: normalizedLimit,
+    paymentPeriodDays: normalizedPeriod,
+    updatedAt: new Date().toISOString(),
+  };
+  await setDoc(doc(db, "customers", uid), payload, { merge: true });
+  return payload;
+}

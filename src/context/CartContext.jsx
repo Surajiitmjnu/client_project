@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../firebase";
-import { calculatePrice, getPricingSettings, getProductMoq } from "../utils/pricing";
+import { calculatePrice, getPricingSettings, getProductMoq, subscribeToPricingSettings } from "../utils/pricing";
 import { getCustomerCredit, isLoyalCustomer as checkLoyalty } from "../utils/customerStore";
 import { normalizeCouponCode, subscribeToCoupons } from "../utils/couponStore";
 
@@ -45,9 +45,11 @@ export function CartProvider({ children }) {
 
   useEffect(() => {
     const refreshPricing = () => setSettings(getPricingSettings());
+    const unsubscribePricing = subscribeToPricingSettings(setSettings);
     window.addEventListener("pricing-settings-updated", refreshPricing);
     window.addEventListener("storage", refreshPricing);
     return () => {
+      unsubscribePricing();
       window.removeEventListener("pricing-settings-updated", refreshPricing);
       window.removeEventListener("storage", refreshPricing);
     };
@@ -71,13 +73,9 @@ export function CartProvider({ children }) {
         setCreditBalance(getCustomerCredit(customerId));
       }
     };
-    const intervalId = window.setInterval(() => {
-      setCreditBalance(getCustomerCredit(customerId));
-    }, 1000);
     window.addEventListener("customer-credit-updated", refreshCredit);
     window.addEventListener("storage", refreshCredit);
     return () => {
-      window.clearInterval(intervalId);
       window.removeEventListener("customer-credit-updated", refreshCredit);
       window.removeEventListener("storage", refreshCredit);
     };
@@ -155,7 +153,7 @@ export function CartProvider({ children }) {
     ? Math.min(totalAmount, totalAmount * (Number(appliedCoupon.discountPercent) || 0) / 100)
     : 0;
   const discountedTotal = Math.max(0, totalAmount - couponDiscount);
-  const gstAmount = Math.round(discountedTotal * 0.2 * 100) / 100;
+  const gstAmount = Math.round(discountedTotal * 0.18 * 100) / 100;
   const creditApplied = useCredit ? Math.min(creditBalance, discountedTotal) : 0;
 
   return (

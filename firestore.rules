@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.uid == "dkwkAyrzEDSkJYG1tN1VNFyFjdf1"
+        || request.auth.token.email == "priyanshubhardaj9973@gmail.com"
+        || request.auth.token.admin == true
+        || request.auth.token.role in ["STORE_OWNER", "WAREHOUSE_STAFF"]
+      );
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(["inventory", "updatedAt"]) &&
+        request.resource.data.inventory is int &&
+        request.resource.data.inventory >= 0
+      );
+    }
+
+    match /settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /coupons/{couponId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    match /customers/{uid} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow create: if isAdmin() || (isSignedIn() && request.auth.uid == uid);
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        request.auth.uid == uid &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          "verificationStatus", "isLoyal", "creditLimit", "creditOutstanding", "paymentPeriodDays", "customerType"
+        ])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.customerId == request.auth.uid;
+      allow update: if isAdmin() || (isSignedIn() && resource.data.customerId == request.auth.uid);
+      allow delete: if false;
+    }
+
+    match /notifications/{notificationId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.recipientId == request.auth.uid);
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isSignedIn() && resource.data.recipientId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /inventoryReservations/{resId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /b2bCreditApprovals/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /CreditLedger/{docId} {
+      allow read, write: if isSignedIn();
+    }
+
+    match /mail/{mailId} {
+      allow create: if isSignedIn();
+      allow read, update, delete: if isAdmin();
+    }
+  }
+}

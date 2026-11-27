@@ -2,11 +2,11 @@
 
 :root {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: #101832;
-  background: #f5f5ff;
+  color: #27352f;
+  background: #f7f8f6;
 }
 * { box-sizing: border-box; }
-.ms-admin { min-height: 100vh; background: #f5f5ff; }
+.ms-admin { min-height: 100vh; background: #f7f8f6; }
 #root:has(.ms-login-page) {
   width: 100%;
   max-width: none;
@@ -163,14 +163,14 @@
 .ms-bell i { position: absolute; top: -1px; right: -1px; background: #f33e51; color: white; font-style: normal; font-size: 10px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; }
 .ms-notification-dropdown { position: absolute; top: calc(100% + 10px); right: -10px; z-index: 30; width: 310px; overflow: hidden; border: 1px solid #e1e4f1; border-radius: 12px; background: white; box-shadow: 0 12px 30px #28305226; }
 .ms-notification-heading { display: flex; align-items: center; justify-content: space-between; padding: 13px 14px; border-bottom: 1px solid #edf0f7; color: #25304b; font-size: 13px; }
-.ms-notification-heading button { border: 0; background: transparent; color: #6435ed; font: inherit; font-size: 11px; cursor: pointer; }
+.ms-notification-heading button { border: 0; background: transparent; color: #173f35; font: inherit; font-size: 11px; cursor: pointer; }
 .ms-notification-item { display: grid; gap: 4px; width: 100%; padding: 12px 14px; border: 0; border-bottom: 1px solid #f0f1f7; background: #f8f6ff; color: #25304b; text-align: left; cursor: pointer; }
 .ms-notification-item:hover { background: #eee7ff; }
 .ms-notification-item.read { background: white; }
 .ms-notification-item strong { font-size: 12px; }
 .ms-notification-item small { color: #63708c; font-size: 11px; }
 .ms-no-notifications { margin: 0; padding: 22px 14px; color: #63708c; font-size: 12px; text-align: center; }
-.ms-avatar { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #6939ec; color: white; font-size: 20px; }
+.ms-avatar { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #173f35; color: white; font-size: 20px; }
 .ms-admin-name { border: 0; background: transparent; display: flex; align-items: center; gap: 8px; font: inherit; font-size: 14px; font-weight: 600; }
 .ms-sidebar { position: fixed; top: 82px; bottom: 0; left: 0; width: 258px; padding: 20px 15px; display: flex; flex-direction: column; background: #f0f0ff; border-right: 1px solid #e5e6f5; }
 .ms-sidebar nav { display: grid; gap: 4px; }
@@ -190,16 +190,18 @@
 .ms-management-grid { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(320px,.85fr); gap: 17px; margin-bottom: 17px; }
 .ms-catalog-panel { margin-bottom: 17px; }
 .ms-catalog-actions { display: flex; flex-wrap: wrap; gap: 9px; }
-.ms-catalog-button { display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 8px; padding: 10px 13px; background: #eee7ff; color: #6435ed; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.ms-catalog-button { display: inline-flex; align-items: center; gap: 7px; border: 0; border-radius: 8px; padding: 10px 13px; background: #edf5ef; color: #173f35; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .ms-catalog-button input { display: none; }
 .ms-csv-format { margin: 12px 0 0; color: #63708c; font-size: 11px; }
 .ms-csv-format code { padding: 2px 4px; font-size: 10px; }
 .ms-variant-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 11px; margin-top: 16px; padding-top: 14px; border-top: 1px solid #edf0f7; }
 .ms-variant-form h4 { grid-column: 1 / -1; margin: 0; color: #25304b; font-size: 13px; }
 .ms-variant-form label { display: grid; gap: 6px; color: #25304b; font-size: 11px; font-weight: 600; }
-.ms-variant-form input, .ms-variant-form select { min-width: 0; border: 1px solid #dfe2ef; border-radius: 8px; padding: 9px 10px; background: white; color: #25304b; font: inherit; font-size: 12px; }
+.ms-variant-form input, .ms-variant-form select, .ms-variant-form textarea { min-width: 0; border: 1px solid #dfe2ef; border-radius: 8px; padding: 9px 10px; background: white; color: #25304b; font: inherit; font-size: 12px; }
+.ms-variant-form .ms-product-wide-field { grid-column: 1 / -1; }
+.ms-variant-form .ms-form-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .ms-variant-form .ms-variant-checkbox { display: flex; align-items: center; gap: 8px; }
-.ms-variant-form .ms-variant-checkbox input { width: auto; margin: 0; accent-color: #6435ed; }
+.ms-variant-form .ms-variant-checkbox input { width: auto; margin: 0; accent-color: #173f35; }
 .ms-variant-form button { justify-self: start; align-self: end; }
 .ms-catalog-success, .ms-catalog-error { margin: 10px 0 0; font-size: 12px; font-weight: 600; }
 .ms-catalog-success { color: #07975a; }
@@ -216,7 +218,7 @@
 .coupon-box label { display: block; margin-bottom: 6px; color: #25304b; font-size: 12px; font-weight: 600; }
 .coupon-box > div { display: flex; gap: 6px; }
 .coupon-box input { min-width: 0; flex: 1; border: 1px solid #dfe2ef; border-radius: 7px; padding: 9px; font: inherit; font-size: 12px; }
-.coupon-box button { border: 0; border-radius: 7px; padding: 8px 11px; background: #eee7ff; color: #6435ed; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.coupon-box button { border: 0; border-radius: 7px; padding: 8px 11px; background: #edf5ef; color: #173f35; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 .coupon-success { margin: 7px 0 0; color: #07975a; font-size: 11px; }
 .coupon-success button { padding: 0; background: transparent; color: #d83d4a; }
 .ms-panel-description { margin: -4px 0 15px; color: #63708c; font-size: 12px; line-height: 1.5; }
@@ -227,7 +229,7 @@
 .ms-notification-form textarea { resize: vertical; }
 .ms-notification-form input:focus, .ms-notification-form select:focus, .ms-notification-form textarea:focus { outline: 2px solid #7540f633; border-color: #7540f6; }
 .ms-notification-form button { justify-self: start; }
-.ms-save-button, .ms-add-tier { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 8px; padding: 9px 11px; background: #eee7ff; color: #6435ed; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.ms-save-button, .ms-add-tier { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 8px; padding: 9px 11px; background: #edf5ef; color: #173f35; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .ms-tier-list { display: grid; gap: 8px; }
 .ms-tier-row { display: flex; align-items: center; gap: 12px; padding: 9px; background: #f7f7fd; border-radius: 9px; color: #4f5b77; font-size: 12px; }
 .ms-tier-row label { display: flex; align-items: center; gap: 6px; }
@@ -247,7 +249,7 @@
 .ms-customer-search input { width: 100%; border: 0; outline: 0; font: inherit; font-size: 12px; }
 .ms-customer-list { display: grid; gap: 8px; margin-top: 12px; max-height: 198px; overflow-y: auto; }
 .ms-customer-row { display: flex; align-items: center; gap: 9px; padding: 7px 0; border-bottom: 1px solid #edf0f7; }
-.ms-customer-avatar { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; background: #eee7ff; color: #6435ed; font-size: 13px; font-weight: 700; }
+.ms-customer-avatar { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; background: #edf5ef; color: #173f35; font-size: 13px; font-weight: 700; }
 .ms-customer-details { display: grid; min-width: 0; flex: 1; }
 .ms-customer-details strong { overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
 .ms-customer-details small { overflow: hidden; text-overflow: ellipsis; color: #63708c; font-size: 10px; }
@@ -273,7 +275,7 @@
 .ms-panel { background: white; border: 1px solid #f0f0fa; border-radius: 17px; padding: 18px 20px; min-width: 0; box-shadow: 0 5px 20px #342a6b04; }
 .ms-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .ms-panel-heading h3 { display: flex; align-items: center; gap: 12px; margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -.3px; }
-.ms-panel-heading h3 svg { color: #713cf2; }
+.ms-panel-heading h3 svg { color: #173f35; }
 .ms-select { padding: 9px 12px; font-size: 12px; }
 .ms-chart { width: 100%; height: 215px; }
 .ms-order-type-content { display: flex; align-items: center; justify-content: space-around; gap: 12px; min-height: 215px; }
@@ -293,7 +295,7 @@
 .ms-inventory-value.low { color: #d83d4a; }
 .ms-category-list { display: grid; gap: 8px; }
 .ms-category-row { display: flex; justify-content: space-between; padding: 12px; border-radius: 8px; background: #f7f7fd; color: #25304b; font-size: 12px; }
-.ms-category-row strong { color: #6435ed; }
+.ms-category-row strong { color: #173f35; }
 .ms-view-all { display: inline-flex; align-items: center; gap: 5px; color: #6838ee; text-decoration: none; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .ms-table-wrap { overflow-x: auto; }
 .ms-orders-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; white-space: nowrap; }
@@ -306,7 +308,7 @@
 .ms-verification-toggle.verified { border-color: #9cddb7; background: #e2f8eb; color: #15803d; }
 .ms-details-button { border: 1px solid #cfe0d3; border-radius: 7px; padding: 6px 8px; background: white; color: #173f35; font: inherit; font-size: 11px; cursor: pointer; white-space: nowrap; }
 .ms-details-button:hover { background: #edf5ef; }
-.ms-type-badge.retail { color: #6435ed; background: #eee7ff; }
+.ms-type-badge.retail { color: #173f35; background: #edf5ef; }
 .ms-type-badge.b2b { color: #1670e9; background: #e4efff; }
 .ms-status.delivered { color: #07975a; background: #d9f8e9; }
 .ms-status.shipped { color: #176de0; background: #deedff; }

@@ -6,10 +6,27 @@ import { useCart } from "../context/CartContext";
 import { calculatePrice, getPricingSettings, getProductMoq } from "../utils/pricing";
 import { auth } from "../firebase";
 import { isCustomerVerified } from "../utils/customerStore";
-import { getProductImageOrigin } from "../utils/productImages";
+import {
+  getProductImageOrigin,
+  handleProductImageError,
+  resolveProductImageUrl,
+} from "../utils/productImages";
 import { subscribeToProducts } from "../utils/productStore";
 import { isProductVariantActive } from "../utils/productVariants";
 import { SAMPLE_PRODUCTS } from "../utils/sampleProducts";
+
+function isBiharPincode(pincode) {
+  const trimmed = String(pincode || "").trim();
+  if (!/^\d{6}$/.test(trimmed)) return false;
+  const prefix = Number(trimmed.slice(0, 3));
+  return (
+    (prefix >= 800 && prefix <= 805) ||
+    (prefix >= 811 && prefix <= 813) ||
+    (prefix >= 821 && prefix <= 824) ||
+    (prefix >= 841 && prefix <= 848) ||
+    (prefix >= 851 && prefix <= 855)
+  );
+}
 
 function getSecureProductImages(product) {
   const imageUrls = [
@@ -23,7 +40,7 @@ function getSecureProductImages(product) {
     } catch {
       return false;
     }
-  }))];
+  }).map(resolveProductImageUrl))];
 }
 
 function getVariantAttributeOptions(variants, attribute) {
@@ -43,13 +60,12 @@ export default function ProductView() {
   const product = products.find(
     (item) => String(item.id) === String(id)
   );
+  const [selectedImage, setSelectedImage] = useState(0);
+  const [isImageZoomed, setIsImageZoomed] = useState(false);
   const images = product ? getSecureProductImages(product) : [];
   const imageOrigin = images.length
     ? getProductImageOrigin(images[selectedImage % images.length])
     : "";
-
-  const [selectedImage, setSelectedImage] = useState(0);
-  const [isImageZoomed, setIsImageZoomed] = useState(false);
   const [size, setSize] = useState("30 ml");
   const [volume, setVolume] = useState("");
   const [shade, setShade] = useState("");
@@ -108,7 +124,7 @@ export default function ProductView() {
     );
   }
 
-  const moq = getProductMoq(product, currentPricing);
+  const moq = getProductMoq(product, currentPricing) || 1;
   const activeImageIndex = images.length ? selectedImage % images.length : 0;
   const productVariants = Array.isArray(product.variants)
     ? product.variants.filter(isProductVariantActive)
@@ -156,7 +172,7 @@ export default function ProductView() {
     ? wholesalePrice
     : hasRetailMsrp
       ? retailMsrp
-      : Number(product.price);
+      : Number(product.price) || 0;
   const pricing = calculatePrice(basePrice, qty, currentPricing, isLoyalCustomer, moq);
   const variantSelectors = [
     { attribute: "size", label: "Size", options: sizeOptions, value: selectedAttributes.size, setValue: setSize },
@@ -214,7 +230,13 @@ export default function ProductView() {
                   setIsImageZoomed(false);
                 }}
               >
-                <img src={img} alt="" loading="lazy" fetchPriority="low" />
+                <img
+                  src={img}
+                  alt=""
+                  loading="lazy"
+                  fetchPriority="low"
+                  onError={handleProductImageError}
+                />
               </button>
             ))}
           </div>
@@ -235,6 +257,7 @@ export default function ProductView() {
                     loading="eager"
                     fetchPriority="high"
                     decoding="async"
+                    onError={handleProductImageError}
                   />
                 </button>
                 {images.length > 1 && (
@@ -292,7 +315,6 @@ export default function ProductView() {
           <div className="rating">
             <span className="stars">★★★★★</span>
             <b>4.5</b> (1,248 reviews)
-            <button className="wishlist">♥ Add to Wishlist</button>
           </div>
 
           <div className="price">
@@ -314,7 +336,7 @@ export default function ProductView() {
           <p className="tax">Inclusive of all taxes</p>
 
           <p className="description">
-            Explore {product.name}, from our {product.category} collection.
+            {product.description || `Explore ${product.name}, from our ${product.category} collection.`}
           </p>
 
           <div className="features">
@@ -384,7 +406,6 @@ export default function ProductView() {
                   if (isBelowWholesaleMoq) return;
                   addToCart({ ...product, price: basePrice, selectedVariant }, qty, selectedVariantLabel);
                   setNotification(`${qty} ${qty === 1 ? "item" : "items"} added to your cart`);
-                  window.setTimeout(() => navigate("/cart"), 700);
                 }}
               >
                 🛒 Add to Cart
@@ -410,14 +431,6 @@ export default function ProductView() {
         <aside className="sidebar">
           <div className="side-card services">
             <div>
-              <span>🚚</span>
-              <p><b>Free Delivery</b><small>On orders above ₹499</small></p>
-            </div>
-            <div>
-              <span>↻</span>
-              <p><b>Easy Returns</b><small>7 days return policy</small></p>
-            </div>
-            <div>
               <span>♢</span>
               <p><b>Authentic Products</b><small>100% genuine products</small></p>
             </div>
@@ -428,26 +441,32 @@ export default function ProductView() {
           </div>
 
           <div className="side-card delivery">
-            <h4>📍 Estimated Delivery</h4>
+            <h4>📍 Estimated Delivery (Bihar Only)</h4>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                const trimmedPin = pin.trim();
+                if (!/^\d{6}$/.test(trimmedPin)) {
+                  setMessage("Please enter a valid 6-digit pincode.");
+                  return;
+                }
                 setMessage(
-                  /^\d{6}$/.test(pin)
-                    ? "Usually delivers in 3–5 days"
-                    : "Please enter a valid 6-digit pincode"
+                  isBiharPincode(trimmedPin)
+                    ? `Delivery available for ${trimmedPin} (Bihar) · 1–3 business days.`
+                    : `Sorry, delivery is currently available in Bihar only (${trimmedPin} is outside Bihar).`,
                 );
               }}
             >
               <input
                 value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                placeholder="Enter pincode"
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                placeholder="Enter Bihar pincode"
+                inputMode="numeric"
                 maxLength={6}
               />
               <button type="submit">Check</button>
             </form>
-            <small>{message || "Usually delivers in 3–5 days"}</small>
+            <small role="status">{message || "Enter a Bihar pincode (e.g. 841226) to check delivery."}</small>
           </div>
 
           <div className="side-card seller">
@@ -455,7 +474,6 @@ export default function ProductView() {
             <b>Mayoor Store</b>
             <p>Quality products from our store</p>
             <p>⭐ 4.6 (12.5K+ ratings)</p>
-            <a href="#store">View Store →</a>
           </div>
         </aside>
       </div>
@@ -480,8 +498,7 @@ export default function ProductView() {
               <div>
                 <h4>Product Description</h4>
                 <p>
-                  {product.name} belongs to our {product.category} collection.
-                  Explore the product images and details before purchasing.
+                  {product.description || `${product.name} belongs to our ${product.category} collection. Explore the product images and details before purchasing.`}
                 </p>
               </div>
 

@@ -1,7 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { auth } from "../firebase";
 import { Bell, WalletCards } from "lucide-react";
 import { getCustomerCredit, getCustomerProfile } from "../utils/customerStore";
@@ -65,13 +65,9 @@ function Navbar() {
       }
       setCreditBalance(getCustomerCredit(user?.uid));
     };
-    const intervalId = window.setInterval(() => {
-      setCreditBalance(getCustomerCredit(user?.uid));
-    }, 1000);
     window.addEventListener("customer-credit-updated", refreshCredit);
     window.addEventListener("storage", refreshCredit);
     return () => {
-      window.clearInterval(intervalId);
       window.removeEventListener("customer-credit-updated", refreshCredit);
       window.removeEventListener("storage", refreshCredit);
     };
@@ -181,10 +177,10 @@ function Navbar() {
         </form>
 
         <div className="nav-links">
-          <a href="/">Home</a>
-          <a href="/products">Products</a>
-          <a href="/orders">Orders</a>
-          <a href="/b2b">B2B Wholesale</a>
+          <Link to="/">Home</Link>
+          <Link to="/products">Products</Link>
+          <Link to="/orders">Orders</Link>
+          <Link to="/faq">Policies &amp; FAQ</Link>
         </div>
 
         <div className="nav-actions">
@@ -263,14 +259,14 @@ function Navbar() {
               </div>
             </>
           ) : (
-            <a href="/login" className="login-btn">
+            <Link to="/login" className="login-btn">
               Login
-            </a>
+            </Link>
           )}
 
-          <a href="/cart" className="cart-btn">
+          <Link to="/cart" className="cart-btn">
             🛒 Cart
-          </a>
+          </Link>
         </div>
       </nav>
     </>

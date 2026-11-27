@@ -2,7 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./Home.css";
 import { SAMPLE_PRODUCTS } from "../utils/sampleProducts";
-import { getProductImageOrigin } from "../utils/productImages";
+import {
+  getProductImageOrigin,
+  handleProductImageError,
+  resolveProductImageUrl,
+} from "../utils/productImages";
 import {
   initializeSampleProducts,
   subscribeToProducts,
@@ -106,8 +110,8 @@ function Home() {
               Shop Products →
             </a>
 
-            <a href="/b2b" className="secondary-btn">
-              Explore Wholesale
+            <a href="/faq" className="secondary-btn">
+              Wholesale &amp; Policies
             </a>
           </div>
 
@@ -126,11 +130,12 @@ function Home() {
         <div className="hero-visual">
           {heroProduct ? (
             <img
-              src={heroImage}
+              src={resolveProductImageUrl(heroImage)}
               alt={heroProduct.name}
               loading="eager"
               fetchPriority="high"
               decoding="async"
+              onError={handleProductImageError}
             />
           ) : (
             <div className="hero-product-empty">Products from our store will appear here.</div>
@@ -172,10 +177,11 @@ function Home() {
               <span className="category-image">
                 {category.product.images?.[0] || category.product.image ? (
                   <img
-                    src={category.product.images?.[0] || category.product.image}
+                    src={resolveProductImageUrl(category.product.images?.[0] || category.product.image)}
                     alt={category.product.name}
                     loading="lazy"
                     fetchPriority="low"
+                    onError={handleProductImageError}
                   />
                 ) : (
                   <span className="category-icon">{category.icon}</span>
@@ -218,10 +224,11 @@ function Home() {
                 className="product-image"
               >
                 <img
-                  src={product.images?.[0] || product.image}
+                  src={resolveProductImageUrl(product.images?.[0] || product.image)}
                   alt={product.name}
                   loading="lazy"
                   fetchPriority="low"
+                  onError={handleProductImageError}
                 />
                 <span className="stock-badge">Explore</span>
               </a>
@@ -270,8 +277,8 @@ function Home() {
           </p>
         </div>
 
-        <a href="/b2b" className="wholesale-btn">
-          Explore B2B →
+        <a href="/products" className="wholesale-btn">
+          Explore Catalog →
         </a>
       </section>
 
@@ -282,10 +289,11 @@ function Home() {
   <div className="skin-care-image">
     {heroProduct && (
       <img
-        src={heroImage}
+        src={resolveProductImageUrl(heroImage)}
         alt={heroProduct.name}
         loading="lazy"
         fetchPriority="low"
+        onError={handleProductImageError}
       />
     )}
   </div>
@@ -374,8 +382,8 @@ function Home() {
     ))}
   </div>
 
-  <a href="/community" className="instagram-btn">
-    ◎ Follow Our Journey
+  <a href="/products" className="instagram-btn">
+    ◎ Explore Full Collection
   </a>
 </section>
 

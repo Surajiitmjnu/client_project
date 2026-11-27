@@ -1,4 +1,4 @@
-import { addDoc, collection, doc, onSnapshot, runTransaction, updateDoc } from "firebase/firestore";
+import { addDoc, collection, doc, onSnapshot, runTransaction } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
 const LOCAL_ORDERS_KEY = "mayoor-orders";
@@ -47,12 +47,52 @@ function invoiceLockedError() {
   return error;
 }
 
+const ALLOWED_STATUS_TRANSITIONS = {
+  PENDING: ["CONFIRMED", "PACKAGING", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"],
+  CONFIRMED: ["PACKAGING", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"],
+  PACKAGING: ["OUT_FOR_DELIVERY", "DELIVERED"],
+  OUT_FOR_DELIVERY: ["DELIVERED"],
+  DELIVERED: [],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+
+export function normalizeOrderStatus(status) {
+  const upper = String(status || "PENDING").trim().toUpperCase().replace(/\s+/g, "_");
+  if (upper === "SHIPPED") return "OUT_FOR_DELIVERY";
+  if (upper === "COMPLETED") return "DELIVERED";
+  return upper;
+}
+
+export function getAllowedNextOrderStatuses(currentStatus) {
+  const normalized = normalizeOrderStatus(currentStatus);
+  return ALLOWED_STATUS_TRANSITIONS[normalized] || [];
+}
+
+function assertValidStatusTransition(currentStatus, targetStatus) {
+  const from = normalizeOrderStatus(currentStatus);
+  const to = normalizeOrderStatus(targetStatus);
+  if (from === "DELIVERED" || from === "COMPLETED" || from === "CANCELLED") {
+    const error = new Error("ERR-ORD-005: Delivered or cancelled orders are immutable.");
+    error.code = "ERR-ORD-005";
+    throw error;
+  }
+  if (from === to) return;
+  const allowed = ALLOWED_STATUS_TRANSITIONS[from] || [];
+  if (!allowed.includes(to)) {
+    const error = new Error(`InvalidStateTransitionException: Cannot transition order from ${from} to ${to}.`);
+    error.code = "InvalidStateTransitionException";
+    throw error;
+  }
+}
+
 function assertOrderCanBeCancelled(order, userId) {
   if (order.customerId !== userId) {
     throw new Error("You can only cancel your own orders.");
   }
-  if (String(order.status || "").trim().toUpperCase() !== "CONFIRMED") {
-    throw new Error("Only confirmed orders can be cancelled.");
+  const normalized = normalizeOrderStatus(order.status);
+  if (!["PENDING", "CONFIRMED"].includes(normalized)) {
+    throw new Error("Only pending or confirmed orders can be cancelled before packaging.");
   }
 }
 
@@ -77,6 +117,7 @@ export async function cancelOrder(orderId) {
     if (!orderDocument.exists()) throw new Error("Order could not be found.");
 
     const order = orderDocument.data();
+    if (order.invoiceSnapshot) throw invoiceLockedError();
     assertOrderCanBeCancelled(order, userId);
     const updatedAt = new Date().toISOString();
     transaction.update(orderReference, { status: "Cancelled", updatedAt });
@@ -288,19 +329,31 @@ export function createLocalOrder(order) {
 }
 
 export async function updateOrderStatus(orderId, status, order = {}) {
+  const normalizedTarget = normalizeOrderStatus(status);
   if (String(orderId).startsWith("LOCAL-")) {
-    const updatedOrder = updateLocalOrder(orderId, { status, updatedAt: new Date().toISOString() });
-    await queueOrderStatusEmail({ ...order, ...updatedOrder }, status);
+    const currentOrder = getLocalOrders().find((item) => item.id === orderId);
+    if (currentOrder?.invoiceSnapshot) throw invoiceLockedError();
+    if (currentOrder) assertValidStatusTransition(currentOrder.status, normalizedTarget);
+    const updatedOrder = updateLocalOrder(orderId, { status: normalizedTarget, updatedAt: new Date().toISOString() });
+    await queueOrderStatusEmail({ ...order, ...updatedOrder }, normalizedTarget);
     return updatedOrder;
   }
 
   try {
-    await updateDoc(doc(db, "orders", orderId), {
-      status,
-      updatedAt: new Date().toISOString(),
+    const orderReference = doc(db, "orders", orderId);
+    const updatedOrder = await runTransaction(db, async (transaction) => {
+      const orderDocument = await transaction.get(orderReference);
+      if (!orderDocument.exists()) throw new Error("Order could not be found.");
+      const currentOrder = orderDocument.data();
+      if (currentOrder.invoiceSnapshot) throw invoiceLockedError();
+      assertValidStatusTransition(currentOrder.status, normalizedTarget);
+
+      const updatedAt = new Date().toISOString();
+      transaction.update(orderReference, { status: normalizedTarget, updatedAt });
+      return { id: orderId, ...currentOrder, status: normalizedTarget, updatedAt };
     });
-    await queueOrderStatusEmail({ ...order, id: orderId }, status);
-    return { id: orderId, status };
+    await queueOrderStatusEmail({ ...updatedOrder, ...order, id: orderId }, normalizedTarget);
+    return { id: orderId, status: normalizedTarget };
   } catch (error) {
     console.error("Unable to update order status in Firestore:", error);
     throw error;
@@ -311,16 +364,72 @@ export function getLocalOrderSnapshot() {
   return getLocalOrders();
 }
 
+let isSyncingLocalOrders = false;
+
+export async function syncPendingLocalOrders(existingFirestoreOrders = []) {
+  const uid = auth.currentUser?.uid;
+  if (!uid || isSyncingLocalOrders) return;
+  const localOrders = getLocalOrders();
+  const pendingForUser = localOrders.filter(
+    (order) => order.syncStatus === "pending" && order.customerId === uid,
+  );
+  if (!pendingForUser.length) return;
+
+  isSyncingLocalOrders = true;
+  try {
+    const syncedOrderIds = new Set(existingFirestoreOrders.map((item) => item.orderId).filter(Boolean));
+    const remainingLocal = [...localOrders];
+    for (const localOrder of pendingForUser) {
+      if (localOrder.orderId && syncedOrderIds.has(localOrder.orderId)) {
+        const idx = remainingLocal.findIndex((item) => item.id === localOrder.id);
+        if (idx !== -1) remainingLocal.splice(idx, 1);
+        continue;
+      }
+      try {
+        const { id: _localId, syncStatus: _syncStatus, ...orderPayload } = localOrder;
+        await createOrder(orderPayload);
+        const idx = remainingLocal.findIndex((item) => item.id === localOrder.id);
+        if (idx !== -1) remainingLocal.splice(idx, 1);
+      } catch {
+        // Leave in localStorage if Firestore write is still blocked/offline.
+      }
+    }
+    if (remainingLocal.length !== localOrders.length) {
+      try {
+        localStorage.setItem(LOCAL_ORDERS_KEY, JSON.stringify(remainingLocal));
+        window.dispatchEvent(new Event("local-orders-updated"));
+      } catch {
+        // Ignore storage errors.
+      }
+    }
+  } finally {
+    isSyncingLocalOrders = false;
+  }
+}
+
 export function subscribeToOrders(onOrders, onError) {
+  let firestoreOrders = [];
+  const emitOrders = () => {
+    const firestoreOrderIds = new Set(firestoreOrders.map((item) => item.orderId).filter(Boolean));
+    const unsyncedLocal = getLocalOrders().filter(
+      (item) => !item.orderId || !firestoreOrderIds.has(item.orderId),
+    );
+    onOrders([...firestoreOrders, ...unsyncedLocal]);
+  };
+
   const unsubscribe = onSnapshot(
     collection(db, "orders"),
-    (snapshot) => onOrders([...snapshot.docs.map((item) => ({ id: item.id, ...item.data() })), ...getLocalOrders()]),
+    (snapshot) => {
+      firestoreOrders = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      emitOrders();
+      void syncPendingLocalOrders(firestoreOrders);
+    },
     (error) => {
-      onOrders(getLocalOrders());
+      emitOrders();
       onError?.(error);
     },
   );
-  const refreshLocalOrders = () => onOrders(getLocalOrders());
+  const refreshLocalOrders = () => emitOrders();
   window.addEventListener("local-orders-updated", refreshLocalOrders);
   return () => {
     unsubscribe();
