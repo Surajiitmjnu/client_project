@@ -395,21 +395,33 @@ function AdminDashboardContent({ onLogout }) {
   };
 
   const handleOrderStatusChange = async (orderId, status) => {
+    const normalized = normalizeOrderStatus(status);
     setUpdatingOrderId(orderId);
     setOrdersError("");
     try {
       const order = orders.find((item) => item.id === orderId);
-      await updateOrderStatus(orderId, status, order);
-      setOrders((current) => current.map((order) =>
-        order.id === orderId ? { ...order, status } : order,
+      await updateOrderStatus(orderId, normalized, order);
+      setOrders((current) => current.map((item) =>
+        item.id === orderId ? { ...item, status: normalized } : item,
       ));
     } catch (error) {
       setOrdersError(error?.code === "permission-denied"
         ? "Order status could not be updated because Firestore permissions are blocking the admin update."
-        : "Order status could not be updated. Please try again.");
+        : error?.message || "Order status could not be updated. Please try again.");
     } finally {
       setUpdatingOrderId("");
     }
+  };
+
+  const handleQuickOrderAction = (order, targetStatus) => {
+    const orderLabel = order.orderId || String(order.id || "").slice(0, 8);
+    if (targetStatus === "CANCELLED" && !window.confirm(`Cancel order #${orderLabel}?`)) {
+      return;
+    }
+    if (targetStatus === "DELIVERED" && !window.confirm(`Mark order #${orderLabel} as DELIVERED? This cannot be undone.`)) {
+      return;
+    }
+    void handleOrderStatusChange(order.id, targetStatus);
   };
 
   const handleCustomerVerification = async (customer) => {
@@ -1109,6 +1121,7 @@ function AdminDashboardContent({ onLogout }) {
               <h3><ClipboardList size={24} /> Recent Orders</h3>
               <a className="ms-view-all" href="#orders">View All <Eye size={15} /></a>
             </div>
+            {ordersError ? <p className="ms-error-banner">{ordersError}</p> : null}
             <div className="ms-table-wrap">
               <table className="ms-orders-table">
                 <thead><tr><th>#</th><th>Customer</th><th>Type</th><th>Total</th><th>Status</th><th>Date</th><th>Fulfill order</th></tr></thead>
@@ -1123,10 +1136,40 @@ function AdminDashboardContent({ onLogout }) {
                   <td><span className={`ms-type-badge ${orderType.toLowerCase()}`}>{orderType}</span></td>
                   <td>{money(order.total)}</td><td><span className={`ms-status ${orderStatus.toLowerCase()}`}>{orderStatus}</span></td><td>{orderDate}</td>
                   <td>
-                    <div className="ms-form-actions">
+                    <div className="ms-order-actions">
                       <select className="ms-order-status-select" value={orderStatus} disabled={updatingOrderId === order.id || !allowedNext.length} onChange={(event) => handleOrderStatusChange(order.id, event.target.value)} aria-label={`Fulfill order ${String(order.id || "").slice(0, 8)}`}>
                         {statusOptions.map((status) => <option key={status} value={status}>{status}</option>)}
                       </select>
+                      {allowedNext.includes("OUT_FOR_DELIVERY") ? (
+                        <button
+                          type="button"
+                          className="ms-order-action-btn out-for-delivery"
+                          disabled={updatingOrderId === order.id}
+                          onClick={() => handleQuickOrderAction(order, "OUT_FOR_DELIVERY")}
+                        >
+                          Out for Delivery
+                        </button>
+                      ) : null}
+                      {allowedNext.includes("DELIVERED") ? (
+                        <button
+                          type="button"
+                          className="ms-order-action-btn deliver"
+                          disabled={updatingOrderId === order.id}
+                          onClick={() => handleQuickOrderAction(order, "DELIVERED")}
+                        >
+                          Delivered
+                        </button>
+                      ) : null}
+                      {allowedNext.includes("CANCELLED") ? (
+                        <button
+                          type="button"
+                          className="ms-order-action-btn cancel"
+                          disabled={updatingOrderId === order.id}
+                          onClick={() => handleQuickOrderAction(order, "CANCELLED")}
+                        >
+                          Cancel
+                        </button>
+                      ) : null}
                       <button type="button" className="ms-catalog-button" onClick={() => downloadPackingSlip(order)} title="Download warehouse packing slip">
                         Packing Slip
                       </button>

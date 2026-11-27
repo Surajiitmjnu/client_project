@@ -106,7 +106,7 @@ export async function cancelOrder(orderId) {
     if (!currentOrder) throw new Error("Order could not be found.");
     assertOrderCanBeCancelled(currentOrder, userId);
     return updateLocalOrder(orderId, {
-      status: "Cancelled",
+      status: "CANCELLED",
       updatedAt: new Date().toISOString(),
     });
   }
@@ -120,8 +120,8 @@ export async function cancelOrder(orderId) {
     if (order.invoiceSnapshot) throw invoiceLockedError();
     assertOrderCanBeCancelled(order, userId);
     const updatedAt = new Date().toISOString();
-    transaction.update(orderReference, { status: "Cancelled", updatedAt });
-    return { id: orderId, ...order, status: "Cancelled", updatedAt };
+    transaction.update(orderReference, { status: "CANCELLED", updatedAt });
+    return { id: orderId, ...order, status: "CANCELLED", updatedAt };
   });
 }
 
@@ -332,7 +332,6 @@ export async function updateOrderStatus(orderId, status, order = {}) {
   const normalizedTarget = normalizeOrderStatus(status);
   if (String(orderId).startsWith("LOCAL-")) {
     const currentOrder = getLocalOrders().find((item) => item.id === orderId);
-    if (currentOrder?.invoiceSnapshot) throw invoiceLockedError();
     if (currentOrder) assertValidStatusTransition(currentOrder.status, normalizedTarget);
     const updatedOrder = updateLocalOrder(orderId, { status: normalizedTarget, updatedAt: new Date().toISOString() });
     await queueOrderStatusEmail({ ...order, ...updatedOrder }, normalizedTarget);
@@ -345,7 +344,6 @@ export async function updateOrderStatus(orderId, status, order = {}) {
       const orderDocument = await transaction.get(orderReference);
       if (!orderDocument.exists()) throw new Error("Order could not be found.");
       const currentOrder = orderDocument.data();
-      if (currentOrder.invoiceSnapshot) throw invoiceLockedError();
       assertValidStatusTransition(currentOrder.status, normalizedTarget);
 
       const updatedAt = new Date().toISOString();
@@ -431,8 +429,10 @@ export function subscribeToOrders(onOrders, onError) {
   );
   const refreshLocalOrders = () => emitOrders();
   window.addEventListener("local-orders-updated", refreshLocalOrders);
+  window.addEventListener("storage", refreshLocalOrders);
   return () => {
     unsubscribe();
     window.removeEventListener("local-orders-updated", refreshLocalOrders);
+    window.removeEventListener("storage", refreshLocalOrders);
   };
 }

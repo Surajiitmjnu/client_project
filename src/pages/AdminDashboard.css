@@ -311,9 +311,17 @@
 .ms-type-badge.retail { color: #173f35; background: #edf5ef; }
 .ms-type-badge.b2b { color: #1670e9; background: #e4efff; }
 .ms-status.delivered { color: #07975a; background: #d9f8e9; }
-.ms-status.shipped { color: #176de0; background: #deedff; }
+.ms-status.confirmed, .ms-status.packaging { color: #946200; background: #fff4df; }
+.ms-status.out_for_delivery, .ms-status.shipped { color: #176de0; background: #deedff; }
 .ms-status.pending { color: #e23b43; background: #ffe2e3; }
 .ms-status.cancelled { color: #70798f; background: #eceef4; }
+.ms-order-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ms-order-action-btn { border: 1px solid #d5e2d8; border-radius: 7px; padding: 6px 9px; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; background: white; color: #173f35; }
+.ms-order-action-btn:disabled { opacity: .6; cursor: wait; }
+.ms-order-action-btn.out-for-delivery { border-color: #b9d7ff; background: #eef5ff; color: #176de0; }
+.ms-order-action-btn.deliver { border-color: #9cddb7; background: #e2f8eb; color: #07975a; }
+.ms-order-action-btn.cancel { border-color: #f3c1c4; background: #fff0f1; color: #d12e36; }
+.ms-error-banner { margin: 0 0 12px; padding: 10px 12px; border-radius: 8px; background: #fff0f1; color: #b42318; font-size: 12px; font-weight: 600; }
 .ms-order-status-select { border: 1px solid #dfe2ef; border-radius: 7px; padding: 6px 7px; color: #25304b; background: white; font: inherit; font-size: 11px; cursor: pointer; }
 .ms-order-status-select:disabled { opacity: .6; cursor: wait; }
 .ms-product-list { display: grid; gap: 9px; }
